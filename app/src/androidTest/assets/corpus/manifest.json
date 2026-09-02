@@ -1,0 +1,63 @@
+[
+  {
+    "filename": "document (5).pdf",
+    "category": "utility_bill",
+    "language": "fr",
+    "description": "Lydec electricity and water bill for janvier 2023, Casablanca",
+    "organisation": "Lydec",
+    "key_terms": [
+      "Lydec",
+      "janvier",
+      "2023"
+    ]
+  },
+  {
+    "filename": "photo_7075@20220406.pdf",
+    "category": "utility_bill",
+    "language": "ar",
+    "description": "ONEE electricity bill in Arabic for January 2023",
+    "organisation": "المكتب الوطني للكهرباء والماء الصالح للشرب",
+    "key_terms": [
+      "يناير",
+      "2023",
+      "فاتورة"
+    ]
+  },
+  {
+    "filename": "file-825778.pdf",
+    "category": "bank_statement",
+    "language": "fr",
+    "description": "Attijariwafa Bank account statement for janvier 2024",
+    "organisation": "Attijariwafa Bank",
+    "key_terms": [
+      "Attijariwafa Bank",
+      "janvier",
+      "2024",
+      "RELEVE"
+    ]
+  },
+  {
+    "filename": "IMG_9338.pdf",
+    "category": "invoice",
+    "language": "en",
+    "description": "Marjane purchase receipt, January 2022, 5060.4 MAD",
+    "organisation": "Marjane",
+    "key_terms": [
+      "Marjane",
+      "2022",
+      "2022-18785"
+    ]
+  },
+  {
+    "filename": "WhatsApp Doc 2023-10-22 at 07.05.19.pdf",
+    "category": "medical",
+    "language": "ar",
+    "description": "Arabic medical report from Clinique Al Madina, November 2023",
+    "organisation": "عيادة المدينة",
+    "key_terms": [
+      "تقرير",
+      "طبي",
+      "2023"
+    ]
+  }
+]
