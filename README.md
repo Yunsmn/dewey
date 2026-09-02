@@ -54,6 +54,19 @@ question by avoiding it.
 The practical consequence, which shapes a lot of the code: **SAF hands back
 content URIs, not file paths.** Nothing in the app may assume a `File`.
 
+There is a real cost, and it is worth stating rather than hiding. Since Android
+11 the system refuses to grant a document tree over the `Download` root itself —
+the picker says "Can't use this folder" and disables the button. The same applies
+to the storage root and `Android/data`. Any *subfolder* of Downloads is granted
+normally, so Dewey works on `Download/Statements` but cannot be pointed at
+`Download` wholesale.
+
+`MANAGE_EXTERNAL_STORAGE` would lift that restriction. It is not used here. The
+platform is drawing a deliberate line around a folder full of everything a person
+has ever downloaded, and an app that reads one folder does not need a key to all
+of them — which is the same reasoning that chose SAF in the first place, so
+honouring it when it is inconvenient is rather the point.
+
 ### Retrieval: embeddings computed on-device
 
 Every document is embedded once at import, on the phone, using
