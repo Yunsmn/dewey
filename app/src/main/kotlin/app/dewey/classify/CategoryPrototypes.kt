@@ -48,6 +48,7 @@ object CategoryPrototypes {
         DocType.MEDICAL to listOf(
             "Compte rendu medical, consultation, diagnostic, ordonnance, clinique, patient",
             "تقرير طبي، استشارة، تشخيص، وصفة طبية، عيادة",
+            "Medical report from a clinic with a consultation, diagnosis and prescription",
         ),
         DocType.UNIVERSITY to listOf(
             "Releve de notes universitaire, attestation de scolarite, semestre, credits, moyenne",

@@ -28,6 +28,16 @@ data class DocumentRow(
      */
     val text: String?,
     @ColumnInfo(name = "indexed_at") val indexedAt: Long?,
+    /**
+     * Why this document could not be filed confidently, or null if it could.
+     * Stored rather than recomputed so the review queue survives a restart
+     * without re-running the classifier over the whole library.
+     */
+    @ColumnInfo(name = "review_reason") val reviewReason: String? = null,
+    /** How far the winning category beat the runner-up. Shown while reviewing. */
+    @ColumnInfo(name = "classify_margin") val classifyMargin: Float? = null,
+    /** The folder this document was moved into, if it was. */
+    @ColumnInfo(name = "sorted_folder") val sortedFolder: String? = null,
 )
 
 @Entity(

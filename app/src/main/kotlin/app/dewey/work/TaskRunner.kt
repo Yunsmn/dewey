@@ -41,6 +41,23 @@ class TaskRunner(context: Context) {
         )
     }
 
+    fun startSort(treeUri: Uri) {
+        val request = OneTimeWorkRequestBuilder<SortWorker>()
+            .setInputData(Data.Builder().putString(SortWorker.KEY_TREE_URI, treeUri.toString()).build())
+            .addTag(DeweyTask.SORT.uniqueName)
+            .build()
+        workManager.enqueueUniqueWork(DeweyTask.SORT.uniqueName, ExistingWorkPolicy.KEEP, request)
+    }
+
+    fun startUndo() {
+        val request = OneTimeWorkRequestBuilder<UndoSortWorker>()
+            .addTag(DeweyTask.UNDO.uniqueName)
+            .build()
+        // REPLACE, unlike the others: asking to undo again means the user wants
+        // it now, and a stale queued undo helps nobody.
+        workManager.enqueueUniqueWork(DeweyTask.UNDO.uniqueName, ExistingWorkPolicy.REPLACE, request)
+    }
+
     fun observe(task: DeweyTask): Flow<TaskState> =
         workManager.getWorkInfosForUniqueWorkFlow(task.uniqueName)
             .map { infos -> infos.firstOrNull().toTaskState() }

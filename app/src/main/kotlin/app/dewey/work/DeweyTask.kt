@@ -10,6 +10,7 @@ package app.dewey.work
 enum class DeweyTask(val uniqueName: String) {
     INDEX("dewey.task.index"),
     SORT("dewey.task.sort"),
+    UNDO("dewey.task.undo"),
     ;
 
     companion object {

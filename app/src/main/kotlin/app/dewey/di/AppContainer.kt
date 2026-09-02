@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import app.dewey.data.db.DeweyDatabase
+import app.dewey.classify.DocumentClassifier
 import app.dewey.data.repository.DocumentRepository
 import app.dewey.data.storage.DocumentTreeStore
 import app.dewey.data.storage.SafDocumentSource
@@ -12,6 +13,8 @@ import app.dewey.index.Chunker
 import app.dewey.index.Embedder
 import app.dewey.index.OcrTextExtractor
 import app.dewey.index.OnnxEmbedder
+import app.dewey.sort.DocumentMover
+import app.dewey.sort.UndoLog
 import app.dewey.index.PdfTextExtractor
 import app.dewey.index.DocumentSearch
 import app.dewey.work.TaskNotifications
@@ -62,6 +65,14 @@ class AppContainer(private val context: Context) {
     }
 
     val documentSearch: DocumentSearch by lazy { DocumentSearch(database.chunkDao()) }
+
+    val documentDao by lazy { database.documentDao() }
+
+    val classifier: DocumentClassifier by lazy { DocumentClassifier(embedder) }
+
+    val documentMover: DocumentMover by lazy { DocumentMover(context.contentResolver) }
+
+    val undoLog: UndoLog by lazy { UndoLog(java.io.File(context.filesDir, "sort")) }
 
     /**
      * Overridable so instrumentation tests can index without loading a 120MB

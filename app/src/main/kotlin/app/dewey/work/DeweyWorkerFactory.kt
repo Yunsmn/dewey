@@ -28,6 +28,24 @@ class DeweyWorkerFactory(private val container: AppContainer) : WorkerFactory() 
             repository = container.documentRepository,
             notifications = container.taskNotifications,
         )
+        SortWorker::class.java.name -> SortWorker(
+            context = appContext,
+            params = workerParameters,
+            source = container.safDocumentSource,
+            documentDao = container.documentDao,
+            classifier = container.classifier,
+            mover = container.documentMover,
+            undoLog = container.undoLog,
+            notifications = container.taskNotifications,
+        )
+        UndoSortWorker::class.java.name -> UndoSortWorker(
+            context = appContext,
+            params = workerParameters,
+            documentDao = container.documentDao,
+            mover = container.documentMover,
+            undoLog = container.undoLog,
+            notifications = container.taskNotifications,
+        )
         // Returning null hands the class back to the default factory rather than
         // failing, so an unrecognised worker is not a crash.
         else -> null

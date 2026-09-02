@@ -34,6 +34,26 @@ interface DocumentDao {
 
     @Query("DELETE FROM documents WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("SELECT * FROM documents WHERE indexed_at IS NOT NULL")
+    suspend fun allIndexed(): List<DocumentRow>
+
+    @Query("SELECT * FROM documents WHERE review_reason IS NOT NULL ORDER BY classify_margin ASC")
+    fun observeNeedingReview(): Flow<List<DocumentRow>>
+
+    @Query(
+        """
+        UPDATE documents
+        SET doc_type = :docType,
+            review_reason = :reviewReason,
+            classify_margin = :margin
+        WHERE id = :id
+        """
+    )
+    suspend fun recordClassification(id: Long, docType: String, reviewReason: String?, margin: Float?)
+
+    @Query("UPDATE documents SET uri = :uri, sorted_folder = :folder WHERE id = :id")
+    suspend fun recordMove(id: Long, uri: String, folder: String?)
 }
 
 @Dao
