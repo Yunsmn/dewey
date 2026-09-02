@@ -24,3 +24,6 @@ __pycache__/
 tools/corpus/corpus/
 tools/corpus/results/
 tools/corpus/ground_truth.json
+
+# Encoder weights — fetched by tools/eval/fetch_model.sh, not committed
+tools/eval/model/
