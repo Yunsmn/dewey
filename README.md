@@ -101,11 +101,25 @@ and cancelling actually reaches the running task.
 
 ## Build
 
-Requires JDK 17 and the Android SDK.
+Requires JDK 17 and the Android SDK. Both live under `$HOME` in this setup — no
+root, nothing installed system-wide:
 
 ```
 git clone <this repo> && cd document-archive
+. scripts/env.sh          # JAVA_HOME, ANDROID_HOME, PATH
 ./gradlew assembleDebug
+```
+
+`scripts/env.sh` honours `JAVA_HOME` and `ANDROID_HOME` if you already have them
+set, so it will not fight an existing Android Studio install.
+
+If you need the SDK from scratch, the command-line tools bootstrap themselves:
+
+```
+mkdir -p ~/Android/Sdk/cmdline-tools && cd ~/Android/Sdk/cmdline-tools
+curl -LO https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip
+unzip -q commandlinetools-*.zip && mv cmdline-tools latest
+latest/bin/android sdk install platform-tools "platforms;android-36" "build-tools;36.0.0"
 ```
 
 Firebase configuration is not committed. To run the Librarian tier you need your
