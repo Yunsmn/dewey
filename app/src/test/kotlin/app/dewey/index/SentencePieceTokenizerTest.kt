@@ -3,6 +3,7 @@ package app.dewey.index
 import com.google.common.truth.Truth.assertThat
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.junit.Assume.assumeTrue
 import org.junit.BeforeClass
 import org.junit.Test
 import java.io.File
@@ -29,9 +30,21 @@ class SentencePieceTokenizerTest {
         @JvmStatic
         fun load() {
             val vocab = File("src/main/assets/models/tokenizer.bin")
-            check(vocab.exists()) {
-                "Missing ${vocab.path}. Run: python tools/model/prepare_assets.py --model-dir <dir>"
+
+            // The vocabulary is derived from a third-party model and is not
+            // committed, so a fresh clone does not have it. Skipping rather than
+            // failing keeps `gradlew build` green on a clean checkout — but
+            // loudly, because a conformance test that quietly stops running is
+            // worse than one that fails.
+            if (!vocab.exists()) {
+                System.err.println(
+                    "SKIPPING tokenizer conformance: ${vocab.path} is absent.\n" +
+                        "  Run tools/eval/fetch_model.sh, then\n" +
+                        "  python tools/model/prepare_assets.py --model-dir tools/eval/model"
+                )
             }
+            assumeTrue("encoder assets not prepared", vocab.exists())
+
             tokenizer = vocab.inputStream().use(SentencePieceTokenizer::load)
 
             val json = File("src/test/resources/tokenizer_fixtures.json").readText()
