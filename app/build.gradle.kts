@@ -44,6 +44,13 @@ android {
 
     sourceSets["main"].kotlin.srcDir("src/main/kotlin")
 
+    androidResources {
+        // The encoder is memory-mapped from disk rather than read into the heap,
+        // and a compressed asset cannot be mapped. The tokenizer is skipped too:
+        // it is already dense binary and compressing it only costs unpack time.
+        noCompress += listOf("onnx", "bin")
+    }
+
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}")
     }
@@ -64,6 +71,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.serialization.json)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -98,4 +106,7 @@ dependencies {
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.truth)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.androidx.work.testing)
 }

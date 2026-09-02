@@ -11,8 +11,9 @@ import app.dewey.data.storage.SafDocumentSource
 import app.dewey.index.Chunker
 import app.dewey.index.Embedder
 import app.dewey.index.OcrTextExtractor
+import app.dewey.index.OnnxEmbedder
 import app.dewey.index.PdfTextExtractor
-import app.dewey.index.VectorSearch
+import app.dewey.index.DocumentSearch
 import app.dewey.work.TaskNotifications
 import app.dewey.work.TaskRunner
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
@@ -60,16 +61,11 @@ class AppContainer(private val context: Context) {
         )
     }
 
-    val vectorSearch: VectorSearch by lazy { VectorSearch(database.chunkDao()) }
+    val documentSearch: DocumentSearch by lazy { DocumentSearch(database.chunkDao()) }
 
     /**
      * Overridable so instrumentation tests can index without loading a 120MB
      * encoder. Assigned before first use of [embedder] or it has no effect.
      */
-    var embedderFactory: () -> Embedder = {
-        error(
-            "No embedder is wired yet. The ONNX multilingual encoder and its " +
-                "tokenizer land next; until then, indexing cannot build vectors."
-        )
-    }
+    var embedderFactory: () -> Embedder = { OnnxEmbedder.create(context) }
 }

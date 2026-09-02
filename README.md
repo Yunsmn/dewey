@@ -126,6 +126,26 @@ Firebase configuration is not committed. To run the Librarian tier you need your
 own `google-services.json` in `app/` — see [docs/firebase-setup.md](docs/firebase-setup.md).
 The free tier builds and runs without it.
 
+### The encoder
+
+The encoder is not committed — 113MB of third-party weights do not belong in git
+history. Fetch and prepare it before building or running the tests:
+
+```
+tools/eval/fetch_model.sh
+python tools/model/prepare_assets.py --model-dir tools/eval/model
+```
+
+That downloads `Xenova/multilingual-e5-small` (an ONNX export of
+`intfloat/multilingual-e5-small`, MIT licensed), packs its 250k-entry
+SentencePiece vocabulary into a compact binary the app can load without parsing
+17MB of JSON at startup, and writes the fixtures the tokenizer is tested against.
+
+The Kotlin tokenizer is checked token-for-token against HuggingFace `tokenizers`
+on French, Arabic, mixed-script, emoji and malformed input. This matters more
+than it looks: a tokenizer that is subtly wrong never crashes, it just quietly
+produces slightly wrong vectors and slightly worse search, forever.
+
 ### The test corpus
 
 `tools/corpus/` generates the archive this app is developed and evaluated
