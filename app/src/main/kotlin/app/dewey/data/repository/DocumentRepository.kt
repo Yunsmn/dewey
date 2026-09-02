@@ -118,7 +118,7 @@ class DocumentRepository(
      * running it on files that do not need it would make indexing unusable.
      */
     private suspend fun extractText(source: SafDocument): Extraction {
-        val embedded = pdfText.extract(source.uri)
+        val embedded = pdfText.extract(source.uri, source.sizeBytes)
         if (embedded != null && embedded.text.isNotBlank()) {
             return Extraction(embedded.text, TextSource.EMBEDDED, embedded.pageCount)
         }

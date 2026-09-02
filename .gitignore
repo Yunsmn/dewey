@@ -27,3 +27,7 @@ tools/corpus/ground_truth.json
 
 # Encoder weights — fetched by tools/eval/fetch_model.sh, not committed
 tools/eval/model/
+
+# Third-party PDFs fetched for testing — other people's documents, not ours to
+# redistribute. Rebuild with tools/corpus/fetch_real_pdfs.py
+tools/corpus/real/
