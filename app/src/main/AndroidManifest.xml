@@ -32,6 +32,17 @@
             </intent-filter>
         </activity>
 
+        <!-- WorkManager's foreground service must declare the same type the
+             worker passes to ForegroundInfo. Declaring the permission alone is
+             not enough: the framework compares the requested type against this
+             attribute and throws if it is not a subset, which crashes the app
+             the moment a long job goes to the foreground. -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge"
+            xmlns:tools="http://schemas.android.com/tools" />
+
         <!-- The app supplies its own WorkerFactory, so the default initialiser
              is removed and WorkManager is configured in DeweyApplication. -->
         <provider

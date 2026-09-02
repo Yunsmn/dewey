@@ -26,8 +26,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dewey.domain.model.DocType
 import app.dewey.domain.model.Document
+import app.dewey.domain.model.TextSource
 import app.dewey.ui.components.DocumentRow
 import app.dewey.ui.components.PrimaryAction
+import app.dewey.ui.components.SecondaryAction
 import app.dewey.ui.components.SectionHeading
 import app.dewey.ui.components.TaskBanner
 import app.dewey.ui.theme.Dewey
@@ -37,6 +39,7 @@ import app.dewey.work.TaskState
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
+    onSearch: () -> Unit,
     onOpenDocument: (Document) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -50,6 +53,7 @@ fun LibraryScreen(
 
     LibraryContent(
         state = state,
+        onSearch = onSearch,
         onAddFolder = { pickFolder.launch(null) },
         onCancelIndexing = viewModel::onCancelIndexing,
         onOpenDocument = onOpenDocument,
@@ -60,6 +64,7 @@ fun LibraryScreen(
 @Composable
 private fun LibraryContent(
     state: LibraryUiState,
+    onSearch: () -> Unit,
     onAddFolder: () -> Unit,
     onCancelIndexing: () -> Unit,
     onOpenDocument: (Document) -> Unit,
@@ -79,7 +84,7 @@ private fun LibraryContent(
             ),
         ) {
             item(key = "masthead") {
-                Masthead(state)
+                Masthead(state, onSearch)
                 Spacer(Modifier.height(Dewey.spacing.gutter))
             }
 
@@ -123,9 +128,20 @@ private fun LibraryContent(
 }
 
 @Composable
-private fun Masthead(state: LibraryUiState) {
+private fun Masthead(state: LibraryUiState, onSearch: () -> Unit) {
     Column {
-        Text("Library", style = Dewey.type.Display, color = Dewey.colors.ink)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Library", style = Dewey.type.Display, color = Dewey.colors.ink)
+            // Search is only meaningful once something is shelved, so it appears
+            // with the first document rather than sitting dead on an empty page.
+            if (state.totalDocuments > 0) {
+                SecondaryAction(label = "Find", onClick = onSearch)
+            }
+        }
         Spacer(Modifier.height(Dewey.spacing.tight))
         Row(horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.tight)) {
             Text(
@@ -173,13 +189,19 @@ private fun EmptyLibrary(onAddFolder: () -> Unit) {
 private fun countLabel(count: Int, noun: String): String =
     if (count == 1) "1 $noun" else "$count ${noun}s"
 
-private fun Document.title(): String =
-    displayName.substringBeforeLast('.').takeIf { it.isNotBlank() } ?: displayName
+/**
+ * Null until the document has been classified, which is the honest answer —
+ * the filename is not a title, and dressing it up as one helps nobody.
+ */
+private fun Document.title(): String? =
+    if (docType == DocType.UNKNOWN) null else displayName.substringBeforeLast('.')
 
 private fun Document.subtitle(): String? {
     val parts = buildList {
         if (pageCount > 0) add(if (pageCount == 1) "1 page" else "$pageCount pages")
         language?.let(::add)
+        if (textSource == TextSource.OCR) add("scanned")
+        if (textSource == TextSource.FAILED) add("could not be read")
     }
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
@@ -221,6 +243,7 @@ private fun LibraryPreview() {
                 grantedFolders = 1,
                 task = TaskState.Running(37, 312, "Scan_20240312_004.pdf"),
             ),
+            onSearch = {},
             onAddFolder = {},
             onCancelIndexing = {},
             onOpenDocument = {},
@@ -232,6 +255,6 @@ private fun LibraryPreview() {
 @Composable
 private fun LibraryEmptyPreview() {
     DeweyTheme {
-        LibraryContent(LibraryUiState(), {}, {}, {})
+        LibraryContent(LibraryUiState(), {}, {}, {}, {})
     }
 }

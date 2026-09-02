@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
 
@@ -29,10 +30,15 @@ import app.dewey.ui.theme.DeweyTheme
  * monospaced because they are machine strings you scan. Showing the real
  * filename matters — `Scan_20240312_004.pdf` beside "Lydec, janvier 2023" is the
  * product's entire argument in one line.
+ *
+ * Before a document has been classified there is no such title, only the
+ * useless filename. Repeating it in both lines would waste the row's strongest
+ * position on a string that already means nothing, so an untitled document
+ * leads with its filename in mono and says plainly that it is unread.
  */
 @Composable
 fun DocumentRow(
-    title: String,
+    title: String?,
     subtitle: String?,
     filename: String,
     trailing: String? = null,
@@ -54,13 +60,24 @@ fun DocumentRow(
         verticalAlignment = Alignment.Top,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = Dewey.type.Title,
-                color = Dewey.colors.ink,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (title != null) {
+                Text(
+                    text = title,
+                    style = Dewey.type.Title,
+                    color = Dewey.colors.ink,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else {
+                Text(
+                    text = filename,
+                    style = Dewey.type.Mono.copy(fontSize = 15.sp),
+                    color = Dewey.colors.ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.MiddleEllipsis,
+                )
+            }
+
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
@@ -71,14 +88,18 @@ fun DocumentRow(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            Text(
-                text = filename,
-                style = Dewey.type.Mono,
-                color = Dewey.colors.inkFaint,
-                maxLines = 1,
-                overflow = TextOverflow.MiddleEllipsis,
-                modifier = Modifier.padding(top = Dewey.spacing.tight),
-            )
+
+            // Only worth repeating when the title is something else.
+            if (title != null) {
+                Text(
+                    text = filename,
+                    style = Dewey.type.Mono,
+                    color = Dewey.colors.inkFaint,
+                    maxLines = 1,
+                    overflow = TextOverflow.MiddleEllipsis,
+                    modifier = Modifier.padding(top = Dewey.spacing.tight),
+                )
+            }
         }
         if (trailing != null) {
             Text(
@@ -107,6 +128,13 @@ private fun DocumentRowPreview() {
                 title = "Attijariwafa Bank",
                 subtitle = "Account statement · fevrier 2024",
                 filename = "WhatsApp Doc 2022-01-20 at 10.22.24.pdf",
+                onClick = {},
+            )
+            // Not yet classified: leads with the filename, says so.
+            DocumentRow(
+                title = null,
+                subtitle = "48 pages · not yet read",
+                filename = "IMG_8262.pdf",
                 onClick = {},
             )
         }
