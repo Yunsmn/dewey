@@ -1,0 +1,26 @@
+# Android / Gradle
+*.iml
+.gradle/
+local.properties
+.idea/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.keystore
+google-services.json
+
+# ONNX model weights (fetched by tools/fetch_model.sh)
+app/src/main/assets/models/*.onnx
+
+# Python corpus tooling
+.venv/
+__pycache__/
+*.pyc
+
+# Generated corpus — regenerate with tools/corpus/generate_corpus.py
+tools/corpus/corpus/
+tools/corpus/results/
+tools/corpus/ground_truth.json
