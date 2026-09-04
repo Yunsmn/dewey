@@ -6,6 +6,30 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+/**
+ * Firebase is optional at build time.
+ *
+ * The google-services plugin fails the build outright when google-services.json
+ * is missing, and that file is not committed — it identifies a specific Firebase
+ * project. Applying the plugin unconditionally would mean nobody could build
+ * this repo from a clean clone, which is the one property the README promises.
+ *
+ * So the free tier builds and runs without it, and only the Librarian's cloud
+ * features need it. BuildConfig.HAS_FIREBASE lets the code tell the difference
+ * at runtime instead of crashing on a missing default app.
+ */
+val firebaseConfig = file("google-services.json")
+val hasFirebase = firebaseConfig.exists()
+
+if (hasFirebase) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.lifecycle(
+        "Dewey: no app/google-services.json — building without the cloud features. " +
+            "See README for how to add one."
+    )
+}
+
 android {
     namespace = "app.dewey"
     compileSdk = 36
@@ -40,6 +64,11 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    defaultConfig {
+        buildConfigField("boolean", "HAS_FIREBASE", hasFirebase.toString())
     }
 
     sourceSets["main"].kotlin.srcDir("src/main/kotlin")
@@ -94,6 +123,14 @@ dependencies {
 
     implementation(libs.onnxruntime.android)
     implementation(libs.pdfbox.android)
+
+    // Deliberately no firebase-analytics: it is the default suggestion in
+    // Firebase's own setup steps, and it would add tracking and consent
+    // obligations to an app whose whole argument is about what stays on device.
+    if (hasFirebase) {
+        implementation(platform(libs.firebase.bom))
+        implementation(libs.firebase.ai)
+    }
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

@@ -12,7 +12,10 @@ import app.dewey.domain.model.Document
 import app.dewey.work.DeweyTask
 import app.dewey.work.TaskRunner
 import app.dewey.work.TaskState
+import app.dewey.sort.UndoLog
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -25,8 +28,19 @@ data class LibraryUiState(
     val totalDocuments: Int = 0,
     val grantedFolders: Int = 0,
     val task: TaskState = TaskState.Idle,
+    val sortTask: TaskState = TaskState.Idle,
+    /** Documents the classifier declined to file. Ordered least confident first. */
+    val needsReview: List<Document> = emptyList(),
+    /** True while the last sort can still be put back. */
+    val canUndo: Boolean = false,
 ) {
     val isEmpty: Boolean get() = totalDocuments == 0 && task !is TaskState.Running
+
+    val isBusy: Boolean
+        get() = task is TaskState.Running || sortTask is TaskState.Running
+
+    /** Sorting only means anything once documents have been read. */
+    val canSort: Boolean get() = totalDocuments > 0 && grantedFolders > 0 && !isBusy
 }
 
 /**
@@ -41,20 +55,34 @@ class LibraryViewModel(
     private val repository: DocumentRepository,
     private val treeStore: DocumentTreeStore,
     private val taskRunner: TaskRunner,
+    private val undoLog: UndoLog,
 ) : ViewModel() {
+
+    private val undoAvailable = MutableStateFlow(false)
 
     val state: StateFlow<LibraryUiState> = combine(
         repository.observeDocuments(),
+        repository.observeNeedingReview(),
         treeStore.grantedTrees,
         taskRunner.observe(DeweyTask.INDEX),
-    ) { documents, trees, task ->
+        combine(taskRunner.observe(DeweyTask.SORT), undoAvailable) { sort, undo -> sort to undo },
+    ) { documents, review, trees, indexTask, (sortTask, undo) ->
+        // Review documents are listed separately rather than inside their
+        // section: burying the three files that need a decision among three
+        // hundred that do not is the same as not surfacing them.
+        val reviewIds = review.mapTo(HashSet()) { it.id }
+        val filed = documents.filterNot { it.id in reviewIds }
+
         LibraryUiState(
-            sections = documents.groupBy(Document::docType)
+            sections = filed.groupBy(Document::docType)
                 .map { (type, docs) -> LibrarySection(type, docs) }
                 .sortedWith(compareByDescending<LibrarySection> { it.documents.size }.thenBy { it.type.name }),
             totalDocuments = documents.size,
             grantedFolders = trees.size,
-            task = task,
+            task = indexTask,
+            sortTask = sortTask,
+            needsReview = review,
+            canUndo = undo,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -74,7 +102,29 @@ class LibraryViewModel(
         }
     }
 
-    fun onCancelIndexing() = taskRunner.cancel(DeweyTask.INDEX)
+    fun onCancelIndexing() {
+        taskRunner.cancel(DeweyTask.INDEX)
+        taskRunner.cancel(DeweyTask.SORT)
+    }
+
+    fun onSort() {
+        viewModelScope.launch {
+            val tree = treeStore.grantedTrees.first().firstOrNull() ?: return@launch
+            taskRunner.startSort(tree)
+            undoAvailable.value = true
+        }
+    }
+
+    fun onUndo() {
+        taskRunner.startUndo()
+        undoAvailable.value = false
+    }
+
+    init {
+        // Whether a previous sort is still undoable outlives this ViewModel, so
+        // it is read from the log rather than assumed false on every launch.
+        viewModelScope.launch { undoAvailable.value = undoLog.latest() != null }
+    }
 
     companion object {
         fun factory(container: AppContainer) = object : ViewModelProvider.Factory {
@@ -84,6 +134,7 @@ class LibraryViewModel(
                     repository = container.documentRepository,
                     treeStore = container.documentTreeStore,
                     taskRunner = container.taskRunner,
+                    undoLog = container.undoLog,
                 ) as T
         }
     }

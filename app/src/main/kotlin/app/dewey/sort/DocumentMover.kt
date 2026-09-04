@@ -28,6 +28,21 @@ class DocumentMover(
     }
 
     /**
+     * The document URI for a directory, given either form.
+     *
+     * A tree URI and a document URI look alike and are not interchangeable:
+     * `createDocument` and `moveDocument` take document URIs and reject a tree
+     * URI outright with "Invalid URI". The picker hands back a tree, so every
+     * write path has to convert first.
+     */
+    private fun asDocumentUri(uri: Uri): Uri =
+        if (isTreeOnly(uri)) {
+            DocumentsContract.buildDocumentUriUsingTree(uri, DocumentsContract.getTreeDocumentId(uri))
+        } else {
+            uri
+        }
+
+    /**
      * Finds or creates a subfolder of [parent].
      *
      * Returns the existing folder when one is already there. Creating a second
@@ -39,7 +54,7 @@ class DocumentMover(
         try {
             DocumentsContract.createDocument(
                 resolver,
-                parent,
+                asDocumentUri(parent),
                 DocumentsContract.Document.MIME_TYPE_DIR,
                 name,
             )
@@ -82,7 +97,12 @@ class DocumentMover(
 
     private fun moveNatively(document: Uri, sourceParent: Uri, targetParent: Uri): Uri? =
         try {
-            DocumentsContract.moveDocument(resolver, document, sourceParent, targetParent)
+            DocumentsContract.moveDocument(
+                resolver,
+                document,
+                asDocumentUri(sourceParent),
+                asDocumentUri(targetParent),
+            )
         } catch (e: UnsupportedOperationException) {
             Log.i(TAG, "Provider cannot move; falling back to copy")
             null
@@ -93,7 +113,7 @@ class DocumentMover(
 
     private fun copyThenDelete(document: Uri, targetParent: Uri, folderName: String): Outcome {
         val copy = try {
-            DocumentsContract.copyDocument(resolver, document, targetParent)
+            DocumentsContract.copyDocument(resolver, document, asDocumentUri(targetParent))
         } catch (e: Exception) {
             Log.w(TAG, "Copy failed for $document", e)
             null
@@ -118,9 +138,15 @@ class DocumentMover(
 
     /** The child of [parent] with this display name, if it exists. */
     private fun existingChild(parent: Uri, name: String): Uri? {
-        val parentId = runCatching { DocumentsContract.getDocumentId(parent) }
-            .recoverCatching { DocumentsContract.getTreeDocumentId(parent) }
-            .getOrNull() ?: return null
+        // Tree URIs carry a tree document id, document URIs a document id, and
+        // asking for the wrong one throws rather than returning null.
+        val parentId = runCatching {
+            if (isTreeOnly(parent)) {
+                DocumentsContract.getTreeDocumentId(parent)
+            } else {
+                DocumentsContract.getDocumentId(parent)
+            }
+        }.getOrNull() ?: return null
 
         val children = DocumentsContract.buildChildDocumentsUriUsingTree(parent, parentId)
 
@@ -146,7 +172,35 @@ class DocumentMover(
         }
     }
 
-    private companion object {
-        const val TAG = "DocumentMover"
+    companion object {
+        private const val TAG = "DocumentMover"
+
+        private const val SEGMENT_TREE = "tree"
+        private const val SEGMENT_DOCUMENT = "document"
+
+        /**
+         * True for a bare tree URI — one naming a tree but no document within it.
+         *
+         * Decided from the URI's own shape rather than
+         * `DocumentsContract.isDocumentUri`, which needs a Context and throws a
+         * NullPointerException without one. The three forms are:
+         *
+         *     content://auth/tree/<treeId>                       bare tree
+         *     content://auth/tree/<treeId>/document/<docId>      document in a tree
+         *     content://auth/document/<docId>                    plain document
+         *
+         * Only the first needs converting before a write.
+         */
+        fun isTreeOnly(uri: Uri): Boolean = isTreeOnly(uri.pathSegments)
+
+        /**
+         * The same decision over path segments alone.
+         *
+         * Split out so it can be tested as ordinary Kotlin: the Uri overload
+         * would drag in Robolectric, which for API 36 requires a JDK this build
+         * does not use. The rule has nothing to do with Android anyway.
+         */
+        fun isTreeOnly(segments: List<String>): Boolean =
+            segments.firstOrNull() == SEGMENT_TREE && !segments.contains(SEGMENT_DOCUMENT)
     }
 }

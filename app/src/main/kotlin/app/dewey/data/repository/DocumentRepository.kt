@@ -38,6 +38,10 @@ class DocumentRepository(
 
     fun observeCount(): Flow<Int> = documentDao.observeCount()
 
+    /** Documents the classifier declined to file, least confident first. */
+    fun observeNeedingReview(): Flow<List<Document>> =
+        documentDao.observeNeedingReview().map { rows -> rows.map(DocumentRow::toDomain) }
+
     suspend fun byId(id: Long): Document? = documentDao.byId(id)?.toDomain()
 
     /**

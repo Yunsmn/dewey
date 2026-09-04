@@ -56,6 +56,8 @@ fun LibraryScreen(
         onSearch = onSearch,
         onAddFolder = { pickFolder.launch(null) },
         onCancelIndexing = viewModel::onCancelIndexing,
+        onSort = viewModel::onSort,
+        onUndo = viewModel::onUndo,
         onOpenDocument = onOpenDocument,
         modifier = modifier,
     )
@@ -67,6 +69,8 @@ private fun LibraryContent(
     onSearch: () -> Unit,
     onAddFolder: () -> Unit,
     onCancelIndexing: () -> Unit,
+    onSort: () -> Unit,
+    onUndo: () -> Unit,
     onOpenDocument: (Document) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -89,11 +93,40 @@ private fun LibraryContent(
             }
 
             item(key = "task") {
-                AnimatedVisibility(visible = state.task !is TaskState.Idle) {
+                // Indexing and sorting never run together, so one banner slot
+                // shows whichever is live rather than stacking two.
+                val live = if (state.task !is TaskState.Idle) state.task else state.sortTask
+                AnimatedVisibility(visible = live !is TaskState.Idle) {
                     Column {
-                        TaskBanner(state = state.task, onCancel = onCancelIndexing)
+                        TaskBanner(state = live, onCancel = onCancelIndexing)
                         Spacer(Modifier.height(Dewey.spacing.gutter))
                     }
+                }
+            }
+
+            item(key = "actions") {
+                LibraryActions(state = state, onSort = onSort, onUndo = onUndo)
+            }
+
+            if (state.needsReview.isNotEmpty()) {
+                item(key = "review-heading") {
+                    Spacer(Modifier.height(Dewey.spacing.block))
+                    SectionHeading(label = "Needs a look", count = state.needsReview.size)
+                    Text(
+                        text = "Dewey wasn't sure about these, so it left them where they were.",
+                        style = Dewey.type.Meta,
+                        color = Dewey.colors.inkMuted,
+                        modifier = Modifier.padding(bottom = Dewey.spacing.tight),
+                    )
+                }
+                items(state.needsReview, key = { "review-${it.id}" }) { document ->
+                    DocumentRow(
+                        title = null,
+                        subtitle = document.reviewSubtitle(),
+                        filename = document.displayName,
+                        onClick = { onOpenDocument(document) },
+                    )
+                    HorizontalDivider(color = Dewey.colors.rule, thickness = 1.dp)
                 }
             }
 
@@ -123,6 +156,27 @@ private fun LibraryContent(
                     PrimaryAction(label = "Add a folder", onClick = onAddFolder)
                 }
             }
+        }
+    }
+}
+
+/**
+ * Sorting and undo.
+ *
+ * Undo sits beside sort rather than hidden in a menu. Handing an app four
+ * hundred of your own documents and letting it rearrange them is a leap of
+ * faith, and the visible way back is most of what makes it takeable.
+ */
+@Composable
+private fun LibraryActions(state: LibraryUiState, onSort: () -> Unit, onUndo: () -> Unit) {
+    if (!state.canSort && !state.canUndo) return
+
+    Row(horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row)) {
+        if (state.canSort) {
+            PrimaryAction(label = "Sort into folders", onClick = onSort)
+        }
+        if (state.canUndo && !state.isBusy) {
+            SecondaryAction(label = "Undo the sort", onClick = onUndo)
         }
     }
 }
@@ -196,6 +250,15 @@ private fun countLabel(count: Int, noun: String): String =
 private fun Document.title(): String? =
     if (docType == DocType.UNKNOWN) null else displayName.substringBeforeLast('.')
 
+/** Why this document is waiting, in words rather than an enum name. */
+private fun Document.reviewSubtitle(): String {
+    val pages = if (pageCount > 0) "$pageCount page${if (pageCount == 1) "" else "s"} · " else ""
+    return pages + when (textSource) {
+        TextSource.FAILED, TextSource.NONE -> "nothing readable in it"
+        else -> "doesn't look like anything Dewey files"
+    }
+}
+
 private fun Document.subtitle(): String? {
     val parts = buildList {
         if (pageCount > 0) add(if (pageCount == 1) "1 page" else "$pageCount pages")
@@ -246,6 +309,8 @@ private fun LibraryPreview() {
             onSearch = {},
             onAddFolder = {},
             onCancelIndexing = {},
+            onSort = {},
+            onUndo = {},
             onOpenDocument = {},
         )
     }
@@ -255,6 +320,6 @@ private fun LibraryPreview() {
 @Composable
 private fun LibraryEmptyPreview() {
     DeweyTheme {
-        LibraryContent(LibraryUiState(), {}, {}, {}, {})
+        LibraryContent(LibraryUiState(), {}, {}, {}, {}, {}, {})
     }
 }
