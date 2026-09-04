@@ -13,12 +13,12 @@ package app.dewey.index
  */
 object DateExpander {
 
-    private val MONTHS_FR = arrayOf(
+    internal val MONTHS_FR = arrayOf(
         "janvier", "fevrier", "mars", "avril", "mai", "juin",
         "juillet", "aout", "septembre", "octobre", "novembre", "decembre",
     )
 
-    private val MONTHS_EN = arrayOf(
+    internal val MONTHS_EN = arrayOf(
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December",
     )
@@ -27,7 +27,7 @@ object DateExpander {
      * Moroccan month names, which are not the Levantine ones. A Moroccan bill
      * uses the Maghrebi set, and indexing the wrong one would help nobody.
      */
-    private val MONTHS_AR = arrayOf(
+    internal val MONTHS_AR = arrayOf(
         "يناير", "فبراير", "مارس", "أبريل", "ماي", "يونيو",
         "يوليوز", "غشت", "شتنبر", "أكتوبر", "نونبر", "دجنبر",
     )

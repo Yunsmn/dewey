@@ -112,6 +112,11 @@ def utility_bill_fr(rng: random.Random, provider: str, year: int, month: int) ->
             Line(f'Montant eau : {water} MAD'),
             Line(''),
             Line(f'Total a payer : {total} MAD'),
+            # Issued on the date the answer key records. It used to record one
+            # and print only the payment deadline, so no extractor could ever
+            # have matched it. Uses the existing value, so the RNG stream and
+            # every other document are unchanged.
+            Line(f"Date d'emission : {_iso(year, month, 8)}"),
             Line(f'Date limite de paiement : {_iso(year, month, 28)}'),
             Line(''),
             Line('Le reglement peut etre effectue en agence, par prelevement automatique, '
@@ -154,6 +159,11 @@ def utility_bill_ar(rng: random.Random, year: int, month: int) -> GeneratedDoc:
             Line('تفصيل الاستهلاك'),
             Line(f'الكمية المستهلكة : {rng.randint(150, 500)} كيلوواط ساعة'),
             Line(f'المبلغ الإجمالي المستحق : {amount} درهم'),
+            # Issued on the date the answer key records. It used to record one
+            # and print only the payment deadline, so no extractor could ever
+            # have matched it. Uses the existing value, so the RNG stream and
+            # every other document are unchanged.
+            Line(f'تاريخ الإصدار : {_iso(year, month, 10)}'),
             Line(f'آخر أجل للأداء : {_iso(year, month, 27)}'),
             Line(''),
             Line('يمكن أداء مبلغ الفاتورة بالوكالات التجارية أو عبر الشبابيك البنكية '
@@ -404,12 +414,19 @@ def vendor_invoice(rng: random.Random, vendor: str, year: int, month: int,
     ], rng.randint(2, 4))
     total = round(sum(price for _, price in items) * 1.2, 2)
     invoice_no = f'{year}-{rng.randint(10000, 99999)}'
+    # The metadata date used to be an independent random day that never once
+    # matched the "Date of purchase" / "Date d'achat" line actually printed
+    # below (day 12, fixed) - every invoice's answer-key date was a day no
+    # extractor could ever read from the text. Drawn and discarded rather than
+    # removed outright, so the RNG stream - and every document generated after
+    # this one - is unchanged.
+    rng.randint(3, 26)
 
     if language == 'en':
         return GeneratedDoc(
             category='invoice',
             language='en',
-            date=_iso(year, month, rng.randint(3, 26)),
+            date=_iso(year, month, 12),
             organisation=vendor,
             parties=[customer],
             amount=total,
@@ -439,7 +456,7 @@ def vendor_invoice(rng: random.Random, vendor: str, year: int, month: int,
     return GeneratedDoc(
         category='invoice',
         language='fr',
-        date=_iso(year, month, rng.randint(3, 26)),
+        date=_iso(year, month, 12),
         organisation=vendor,
         parties=[customer],
         amount=total,
@@ -473,12 +490,17 @@ def medical_letter(rng: random.Random, clinic: str, year: int, month: int,
                    language: str) -> GeneratedDoc:
     patient = _person(rng)
     doctor = f'Dr {rng.choice(SURNAMES)}'
+    # The metadata date used to be an independent random day that did not
+    # match the fixed day-14 consultation date actually printed below. Drawn
+    # and discarded, not removed, so the RNG stream is unchanged.
+    rng.randint(3, 27)
+    consulted = _iso(year, month, 14)
 
     if language == 'ar':
         return GeneratedDoc(
             category='medical',
             language='ar',
-            date=_iso(year, month, rng.randint(3, 27)),
+            date=consulted,
             organisation=CLINICS_AR.get(clinic, clinic),
             parties=[patient, doctor],
             description=f'Arabic medical report from {clinic}, {MONTHS_EN[month - 1]} {year}',
@@ -488,7 +510,7 @@ def medical_letter(rng: random.Random, clinic: str, year: int, month: int,
                 Line(''),
                 Line('تقرير طبي'),
                 Line(f'اسم المريض : {patient}'),
-                Line(f'تاريخ الفحص : {_iso(year, month, 14)}'),
+                Line(f'تاريخ الفحص : {consulted}'),
                 Line(f'الطبيب المعالج : {doctor}'),
                 Line(''),
                 Line('أشهد أنا الطبيب الموقع أدناه أنني فحصت المريض المذكور أعلاه '
@@ -506,7 +528,7 @@ def medical_letter(rng: random.Random, clinic: str, year: int, month: int,
     return GeneratedDoc(
         category='medical',
         language='fr',
-        date=_iso(year, month, rng.randint(3, 27)),
+        date=consulted,
         organisation=clinic,
         parties=[patient, doctor],
         description=f'Medical certificate from {clinic}, {MONTHS_FR[month - 1]} {year}, by {doctor}',
@@ -517,7 +539,7 @@ def medical_letter(rng: random.Random, clinic: str, year: int, month: int,
             Line(''),
             Line('CERTIFICAT MEDICAL'),
             Line(f'Patient : {patient}'),
-            Line(f'Date de consultation : {_iso(year, month, 14)}'),
+            Line(f'Date de consultation : {consulted}'),
             Line(f'Medecin traitant : {doctor}'),
             Line(''),
             Line('Je certifie, soussigne medecin, avoir examine ce jour le patient '
@@ -576,6 +598,11 @@ def university_doc(rng: random.Random, university: str, year: int, kind: str) ->
                 Line(f'Grade point average: {round(rng.uniform(12.4, 17.2), 2)} out of 20'),
                 Line(f'Credits earned this year: {rng.randint(48, 60)} ECTS'),
                 Line(''),
+                # Printed because the answer key records it. A transcript with
+                # no issue date on it is not a document anyone would accept,
+                # and it made the recorded date unfindable.
+                Line(f'Date of issue: {_iso(year, 7, 15)}'),
+                Line(''),
                 Line('This transcript is issued by the registrar and bears the official '
                      'seal of the university. It is valid for administrative purposes '
                      'including visa applications, scholarship files and transfer '
@@ -603,6 +630,9 @@ def university_doc(rng: random.Random, university: str, year: int, kind: str) ->
             Line(''),
             Line(f'Filiere : {rng.choice(["Genie Informatique", "Mathematiques Appliquees", "Genie Industriel"])}'),
             Line(f'Niveau : {rng.choice(["Licence 3", "Master 1", "Master 2"])}'),
+            # Same reason as the transcript: the recorded date was never on
+            # the page, so nothing could extract it.
+            Line(f'Fait le : {_iso(year, 10, 5)}'),
             Line(''),
             Line('Cette attestation est delivree a l\'interesse pour servir et valoir '
                  'ce que de droit, notamment pour la constitution d\'un dossier de '
@@ -676,13 +706,22 @@ def employment_doc(rng: random.Random, year: int, kind: str) -> GeneratedDoc:
     month = rng.randint(1, 12)
 
     if kind == 'internship':
+        # Every draw stays in its original position (see the same fix in
+        # admin_doc above for why reordering is unsafe even with matching
+        # call shapes). Only which value becomes *the* amount changes: the
+        # metadata used to be an independent draw that never matched the
+        # "Gratification mensuelle" figure actually printed below.
+        stipend_meta = rng.randrange(2000, 5000, 500)
+        service = rng.choice(["Systemes d'information", "Data et analytique", "Ingenierie procedes"])
+        stipend_print = rng.randrange(2000, 5000, 500)
+
         return GeneratedDoc(
             category='employment',
             language='fr',
             date=_iso(year, month, 1),
             organisation=company,
             parties=[employee],
-            amount=float(rng.randrange(2000, 5000, 500)),
+            amount=float(stipend_print),
             currency='MAD',
             description=f'Internship agreement at {company}, starting {MONTHS_FR[month - 1]} {year}',
             key_terms=[company.split()[0], str(year), 'stage'],
@@ -693,8 +732,8 @@ def employment_doc(rng: random.Random, year: int, kind: str) -> GeneratedDoc:
                 Line('CONVENTION DE STAGE'),
                 Line(f'Stagiaire : {employee}'),
                 Line(f'Periode : du {_iso(year, month, 1)} au {_iso(year, min(month + 5, 12), 28)}'),
-                Line(f'Service d\'affectation : {rng.choice(["Systemes d\'information", "Data et analytique", "Ingenierie procedes"])}'),
-                Line(f'Gratification mensuelle : {rng.randrange(2000, 5000, 500)} MAD'),
+                Line(f'Service d\'affectation : {service}'),
+                Line(f'Gratification mensuelle : {stipend_print} MAD'),
                 Line(''),
                 Line('Le stagiaire est accueilli au sein de l\'entreprise dans le cadre '
                      'de sa formation academique. Il demeure sous statut etudiant et ne '
@@ -793,11 +832,16 @@ def warranty(rng: random.Random, year: int) -> GeneratedDoc:
     ])
     months = rng.choice([12, 24, 36])
     month = rng.randint(1, 12)
+    # The metadata date used to be an independent random day that did not
+    # match the fixed day-12 purchase date actually printed below. Drawn and
+    # discarded, not removed, so the RNG stream is unchanged.
+    rng.randint(2, 27)
+    purchased = _iso(year, month, 12)
 
     return GeneratedDoc(
         category='warranty',
         language='fr',
-        date=_iso(year, month, rng.randint(2, 27)),
+        date=purchased,
         organisation=brand,
         description=f'{months}-month warranty certificate for {brand} {product}, {year}',
         key_terms=[brand, str(year), 'garantie'],
@@ -807,7 +851,7 @@ def warranty(rng: random.Random, year: int) -> GeneratedDoc:
             Line(f'Produit : {product}'),
             Line(f'Modele : {rng.choice(["XR", "GT", "Pro", "Plus"])}-{rng.randint(1000, 9999)}'),
             Line(f'Numero de serie : {rng.randint(10**9, 10**10 - 1)}'),
-            Line(f'Date d\'achat : {_iso(year, month, 12)}'),
+            Line(f'Date d\'achat : {purchased}'),
             Line(f'Duree de garantie : {months} mois'),
             Line(f'Fin de garantie : {_iso(year + months // 12, month, 12)}'),
             Line(''),
@@ -860,10 +904,25 @@ def admin_doc(rng: random.Random, year: int) -> GeneratedDoc:
         )
 
     if kind == 'birth':
+        # Every draw below is kept in its original position - reordering them
+        # would still change the RNG's internal state even with the same
+        # calls, because a 12-wide and a 27-wide range do not consume the
+        # same number of bits. Only which value ends up as *the* date changes:
+        # the metadata date used to be month_meta/day_meta, drawn independently
+        # of, and never equal to, the "تاريخ تسليم النسخة" (date of delivery)
+        # actually printed below.
+        month_meta = rng.randint(1, 12)
+        day_meta = rng.randint(2, 27)
+        nic = rng.randint(100, 9999)
+        year_offset = rng.randint(18, 30)
+        place = rng.choice(["الدار البيضاء", "الرباط", "مراكش", "فاس"])
+        month_print = rng.randint(1, 12)
+        day_print = rng.randint(2, 27)
+        delivered = _iso(year, month_print, day_print)
         return GeneratedDoc(
             category='admin',
             language='ar',
-            date=_iso(year, rng.randint(1, 12), rng.randint(2, 27)),
+            date=delivered,
             organisation='مكتب الحالة المدنية',
             parties=[person],
             description=f'Arabic birth certificate extract issued {year}',
@@ -875,20 +934,31 @@ def admin_doc(rng: random.Random, year: int) -> GeneratedDoc:
                 Line('نسخة موجزة من رسم الولادة'),
                 Line(''),
                 Line(f'الاسم الكامل : {person}'),
-                Line(f'رقم رسم الولادة : {rng.randint(100, 9999)}'),
-                Line(f'سنة التسجيل : {year - rng.randint(18, 30)}'),
-                Line(f'مكان الولادة : {rng.choice(["الدار البيضاء", "الرباط", "مراكش", "فاس"])}'),
-                Line(f'تاريخ تسليم النسخة : {_iso(year, rng.randint(1, 12), rng.randint(2, 27))}'),
+                Line(f'رقم رسم الولادة : {nic}'),
+                Line(f'سنة التسجيل : {year - year_offset}'),
+                Line(f'مكان الولادة : {place}'),
+                Line(f'تاريخ تسليم النسخة : {delivered}'),
                 Line(''),
                 Line('سلمت هذه النسخة الموجزة بطلب من المعني بالأمر لاستعمالها في '
                      'المساطر الإدارية. وهي صالحة لمدة ثلاثة أشهر من تاريخ تسليمها.'),
             ],
         )
 
+    # Same reasoning as the birth-certificate branch above: every draw stays
+    # in its original position, and only which value becomes *the* date
+    # changes - here from an independent random day to the one actually
+    # printed in "Date de delivrance" below.
+    month_meta = rng.randint(1, 12)
+    day_meta = rng.randint(2, 27)
+    letter = rng.choice("ABCDEJKQ")
+    number = rng.randint(100000, 999999)
+    month_print = rng.randint(1, 12)
+    delivered = _iso(year, month_print, 15)
+
     return GeneratedDoc(
         category='admin',
         language='fr',
-        date=_iso(year, rng.randint(1, 12), rng.randint(2, 27)),
+        date=delivered,
         organisation='Ministere de la Justice',
         parties=[person],
         description=f'Criminal record extract (casier judiciaire) issued {year}',
@@ -899,8 +969,8 @@ def admin_doc(rng: random.Random, year: int) -> GeneratedDoc:
             Line('EXTRAIT DE CASIER JUDICIAIRE'),
             Line(''),
             Line(f'Nom et prenom : {person}'),
-            Line(f'Numero de la carte nationale : {rng.choice("ABCDEJKQ")}{rng.randint(100000, 999999)}'),
-            Line(f'Date de delivrance : {_iso(year, rng.randint(1, 12), 15)}'),
+            Line(f'Numero de la carte nationale : {letter}{number}'),
+            Line(f'Date de delivrance : {delivered}'),
             Line(''),
             Line('Apres consultation du casier judiciaire national, il resulte que '
                  'l\'interesse n\'a fait l\'objet d\'aucune condamnation inscrite.'),
@@ -938,6 +1008,11 @@ def telecom_bill(rng: random.Random, operator: str, year: int, month: int) -> Ge
             Line(f'Abonnement internet fibre : {round(amount * 0.35, 2)} MAD'),
             Line(f'Consommation hors forfait : {round(amount * 0.10, 2)} MAD'),
             Line(f'Total a regler : {amount} MAD'),
+            # Issued on the date the answer key records. It used to record one
+            # and print only the payment deadline, so no extractor could ever
+            # have matched it. Uses the existing value, so the RNG stream and
+            # every other document are unchanged.
+            Line(f"Date d'emission : {_iso(year, month, 5)}"),
             Line(f'Date limite de paiement : {_iso(year, month, 25)}'),
             Line(''),
             Line('Le detail des communications est disponible dans l\'espace client. '

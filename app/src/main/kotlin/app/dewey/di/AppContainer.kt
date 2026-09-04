@@ -4,8 +4,12 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
-import app.dewey.data.db.DeweyDatabase
+import app.dewey.BuildConfig
 import app.dewey.classify.DocumentClassifier
+import app.dewey.cloud.AnswerComposer
+import app.dewey.cloud.GeminiAnswerComposer
+import app.dewey.cloud.UnconfiguredAnswerComposer
+import app.dewey.data.db.DeweyDatabase
 import app.dewey.data.repository.DocumentRepository
 import app.dewey.data.storage.DocumentTreeStore
 import app.dewey.data.storage.SafDocumentSource
@@ -73,6 +77,17 @@ class AppContainer(private val context: Context) {
     val documentMover: DocumentMover by lazy { DocumentMover(context.contentResolver) }
 
     val undoLog: UndoLog by lazy { UndoLog(java.io.File(context.filesDir, "sort")) }
+
+    /**
+     * [GeminiAnswerComposer] when a Firebase project was configured at build
+     * time, [UnconfiguredAnswerComposer] otherwise. BuildConfig.HAS_FIREBASE is
+     * generated from whether `app/google-services.json` existed when Gradle
+     * ran — see the comment on `hasFirebase` in app/build.gradle.kts — so this
+     * is the one place that decision reaches the running app.
+     */
+    val answerComposer: AnswerComposer by lazy {
+        if (BuildConfig.HAS_FIREBASE) GeminiAnswerComposer() else UnconfiguredAnswerComposer()
+    }
 
     /**
      * Overridable so instrumentation tests can index without loading a 120MB

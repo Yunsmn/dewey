@@ -7,16 +7,22 @@ plugins {
 }
 
 /**
- * Firebase is optional at build time.
+ * Firebase is optional at build time — the *plugin*, not the SDK.
  *
  * The google-services plugin fails the build outright when google-services.json
  * is missing, and that file is not committed — it identifies a specific Firebase
  * project. Applying the plugin unconditionally would mean nobody could build
  * this repo from a clean clone, which is the one property the README promises.
+ * So only the plugin is gated here.
  *
- * So the free tier builds and runs without it, and only the Librarian's cloud
- * features need it. BuildConfig.HAS_FIREBASE lets the code tell the difference
- * at runtime instead of crashing on a missing default app.
+ * The firebase-ai dependency itself stays unconditional, below. It is a plain
+ * library with no compile-time need for that file — it only matters at
+ * runtime, when FirebaseApp looks for the project resources the plugin
+ * generates from it. Gating the dependency too would mean `cloud/` could not
+ * compile without a Firebase project, which is a much larger cost for the
+ * same safety the plugin gate already buys. BuildConfig.HAS_FIREBASE is what
+ * lets the code tell the difference at runtime instead: see
+ * app.dewey.cloud.GeminiAnswerComposer and app.dewey.cloud.UnconfiguredAnswerComposer.
  */
 val firebaseConfig = file("google-services.json")
 val hasFirebase = firebaseConfig.exists()
@@ -127,10 +133,11 @@ dependencies {
     // Deliberately no firebase-analytics: it is the default suggestion in
     // Firebase's own setup steps, and it would add tracking and consent
     // obligations to an app whose whole argument is about what stays on device.
-    if (hasFirebase) {
-        implementation(platform(libs.firebase.bom))
-        implementation(libs.firebase.ai)
-    }
+    //
+    // Unconditional — see the comment on `hasFirebase` above for why this one
+    // does not need to be gated the way the google-services plugin does.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.ai)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

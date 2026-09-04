@@ -30,8 +30,12 @@ import templates as T
 from arabic_text import normalise_extracted, tokens_for_comparison
 from pdf_render import render
 
-CORPUS_DIR = Path('corpus')
-GROUND_TRUTH = Path('ground_truth.json')
+# Anchored to this file, not to the working directory. Relative paths meant the
+# script quietly wrote a second copy of the whole corpus wherever it happened to
+# be run from, which is easy to miss and ends up in a commit.
+HERE = Path(__file__).resolve().parent
+CORPUS_DIR = HERE / 'corpus'
+GROUND_TRUTH = HERE / 'ground_truth.json'
 SEED = 20260817
 
 # A document is usable if this fraction of its source tokens survive extraction.

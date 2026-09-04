@@ -10,7 +10,7 @@ captures/
 *.apk
 *.aab
 *.keystore
-google-services.json
+google-services*.json  # browsers save re-downloads as 'google-services (1).json'
 
 # Encoder assets, derived from a third-party model. Regenerate with:
 #   tools/eval/fetch_model.sh && python tools/model/prepare_assets.py --model-dir tools/eval/model

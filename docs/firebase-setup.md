@@ -62,38 +62,47 @@ keytool -list -v -alias androiddebugkey -keystore ~/.android/debug.keystore \
 
 ## 4. Turn on Firebase AI Logic
 
-1. In the left sidebar: **Build → AI Logic** (it may read "Firebase AI Logic").
-2. **Get started**.
-3. When asked which backend, choose the **Gemini Developer API** — the option
-   described as having a free tier. **Not** "Vertex AI Gemini API", which
-   requires a billing account.
-4. Accept the prompt to enable the required APIs. Firebase creates an API key
-   scoped to this project; you never see or copy it, which is the point.
+Direct link, which is easier than hunting the sidebar:
 
-## 5. Turn on App Check
+**<https://console.firebase.google.com/project/dewey-212ac/ailogic>**
 
-This is what stops anyone who finds the project id from spending your quota.
+By hand it lives under **AI Services → AI Logic** — *not* under "Build", where
+Firebase's other product areas sit.
 
-1. Sidebar: **Build → App Check**.
-2. Under **Apps**, find `app.dewey` and click it.
-3. Register the **Play Integrity** provider. Accept the defaults.
-4. Leave enforcement **off** for now. Turning it on before a debug token exists
-   locks out your own emulator.
+1. Click **Get started**. It runs a guided workflow rather than a single toggle.
+2. When it asks for a provider, choose **Gemini Developer API** — the one
+   described as letting you "get started quickly at no cost".
+3. Do **not** choose **Agent Platform Gemini API**. That is the product formerly
+   called Vertex AI; it was renamed, and it requires a billing account.
+4. Let the workflow enable the APIs it asks for.
 
-### Debug token, for the emulator
+> The workflow **turns App Check enforcement on automatically**. That is good for
+> a public repo and it means the emulator will be refused until you register a
+> debug token — step 5 is therefore required, not optional.
+
+Afterwards, re-download `google-services.json` and replace `app/google-services.json`.
+Check your browser did not save it as `google-services (1).json` beside the old
+one; that has already happened once.
+
+## 5. Register a debug token for the emulator
 
 Play Integrity cannot attest an emulator, so debug builds use a debug provider.
+The app already installs it automatically in debug builds — you only need to
+tell Firebase the token it prints.
 
-1. Run the app once on the emulator with `google-services.json` in place.
-2. In logcat, find a line from `DebugAppCheckProvider` containing a UUID:
+1. Build and run the app once on the emulator, with `google-services.json` in place.
+2. Read the token out of logcat:
    ```
-   adb logcat -d | grep -i "DebugAppCheckProvider"
+   adb logcat -d | grep -A2 DebugAppCheckProvider
    ```
-3. Copy the UUID.
-4. Console: **App Check → Apps → app.dewey → ⋮ → Manage debug tokens → Add
-   debug token**. Paste it, name it `emulator`.
+   The line reads: "Enter this debug secret into the allow list in the Firebase
+   Console for your project: <token>".
+3. In the console go to **Security → App Check → Apps** tab (again, *not* under
+   "Build"), find `app.dewey`, open its overflow menu **⋮**, choose
+   **Manage debug tokens**, and add the token. Name it `emulator`.
 
-Do not commit that token. It is per-machine and grants quota.
+The token grants quota to whoever holds it, so it is per-machine and must not be
+committed.
 
 ## 6. Confirm
 
