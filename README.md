@@ -91,11 +91,33 @@ Stated precisely, because vague privacy claims are worse than none:
 - **Retrieved chunks go to a cloud model.** When you ask a question, the passages
   retrieved for it are sent to Gemini via Firebase AI Logic to compose an answer.
   Not your corpus — the passages that matched.
-- **Files needing field extraction go to the same model.** Pulling a vendor,
-  amount and due date off a bill sends that document's text.
+- **Sorting sends nothing.** Classification is a nearest-neighbour lookup against
+  on-device embeddings, so filing four hundred documents makes no network call.
 - **Purchases go through RevenueCat**, which is how the entitlement is checked.
 
 This is not an offline app and it does not claim to be.
+
+### Sorting runs on the phone
+
+The obvious design sends every document to a cloud model to be labelled. Dewey
+does not, because it does not need to: each document is already embedded for
+search, and a category is another point in the same space, so a label is a
+nearest-neighbour lookup against a short description of each kind of document.
+
+Measured against the test corpus's own labels, that is **100% accurate** across
+twelve categories in French, Arabic and English. It costs nothing per file, works
+with no network, and means sorting a folder sends nothing anywhere at all.
+
+It also declines to answer. Documents that belong to none of the categories —
+a research paper, a manual, an RFC — score at most 0.792 against every category,
+while documents that do belong score at least 0.821 against their own. The gap is
+clean, so "none of these" is a measurement rather than a guess. Those documents
+are left exactly where they are and surfaced for review instead of being
+confidently filed somewhere wrong.
+
+Every move is written to an undo log as it happens, so an interrupted sort is
+still reversible, and the button that reverses it sits next to the one that
+starts it.
 
 ### Cloud access: Firebase AI Logic
 
@@ -189,14 +211,20 @@ Writes `tools/corpus/corpus/` and a `ground_truth.json` answer key.
 
 Kept current and honest.
 
-- [ ] Stage 1 — scanner, storage, index
-- [ ] Stage 2 — Librarian: find
-- [ ] Stage 3 — Librarian: sort
+- [x] Stage 1 — storage, extraction, on-device index. Verified on device against
+      114 real documents, including a 1012-page scan with no text layer.
+- [x] Stage 2 — find. Hybrid retrieval works on device; the cloud answer layer
+      is not wired yet.
+- [~] Stage 3 — sort. Classification, folder creation, moves, review queue and
+      undo are built and unit-tested; the end-to-end run on device is not yet
+      confirmed.
 - [ ] Stage 4 — bills dashboard
 - [ ] Stage 5 — RevenueCat paywall
 - [ ] Stage 6 — PDF toolkit
 
-Done: the evaluation corpus and its ground truth.
+Measured, not asserted: retrieval is 81% recall@1 and 95% recall@3 over the test
+corpus; classification is 100% over its twelve categories. Both harnesses are in
+`tools/eval/` and can be re-run.
 
 ---
 
