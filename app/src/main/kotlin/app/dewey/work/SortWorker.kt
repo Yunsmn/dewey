@@ -76,7 +76,15 @@ class SortWorker(
         // is what makes a rerun a no-op instead of a wall of false reviews.
         val alreadyFiledFolderIds = alreadyFiledFolderIds(source.topLevelFolders(treeUri))
 
-        undoLog.begin(UUID.randomUUID().toString(), treeUri.toString())
+        // Deliberately not started here.
+        //
+        // Beginning a batch eagerly discards the previous one, so a sort that
+        // turns out to move nothing — which is exactly what a second run over an
+        // already-sorted folder does — would silently destroy the ability to undo
+        // the first. Someone who runs the sort twice out of curiosity would lose
+        // the safety net for the ninety-six files it had already moved. The batch
+        // is opened on the first actual move instead.
+        var batchStarted = false
 
         val folders = HashMap<DocType, Uri>()
         val usedFolders = HashSet<String>()
@@ -130,6 +138,10 @@ class SortWorker(
                     )) {
                         is DocumentMover.Outcome.Moved -> {
                             documentDao.recordMove(row.id, outcome.to.toString(), folderName)
+                            if (!batchStarted) {
+                                undoLog.begin(UUID.randomUUID().toString(), treeUri.toString())
+                                batchStarted = true
+                            }
                             undoLog.record(document.undoRecord(outcome, target, folderName))
                             usedFolders += folderName
                             moved++
