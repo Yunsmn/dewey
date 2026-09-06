@@ -9,10 +9,12 @@ import app.dewey.data.storage.SafDocument
 import app.dewey.domain.model.DocType
 import app.dewey.domain.model.Document
 import app.dewey.domain.model.TextSource
+import app.dewey.extract.FieldExtractor
 import app.dewey.index.Chunker
 import app.dewey.index.Embedder
 import app.dewey.index.OcrTextExtractor
 import app.dewey.index.PdfTextExtractor
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -59,6 +61,11 @@ class DocumentRepository(
         }
 
         val extraction = extractText(source)
+        // Pure text work over what extractText just produced - no second pass
+        // over the file, no OCR re-run. A document with unreadable text (empty
+        // or blank) simply yields every field null, same as any other document
+        // the extractor found nothing in.
+        val fields = FieldExtractor.extract(extraction.text.orEmpty())
         val row = DocumentRow(
             id = existing?.id ?: 0,
             uri = source.uri.toString(),
@@ -71,6 +78,11 @@ class DocumentRepository(
             textSource = extraction.source.name,
             text = extraction.text,
             indexedAt = null,
+            vendor = fields.vendor,
+            amount = fields.amount,
+            currency = fields.currency,
+            issueDateEpochDay = fields.issueDate?.toEpochDay(),
+            dueDateEpochDay = fields.dueDate?.toEpochDay(),
         )
         val documentId = documentDao.upsert(row).let { if (it == -1L) existing!!.id else it }
 
@@ -150,4 +162,9 @@ private fun DocumentRow.toDomain(): Document = Document(
     language = language,
     textSource = runCatching { TextSource.valueOf(textSource) }.getOrDefault(TextSource.NONE),
     indexedAt = indexedAt,
+    vendor = vendor,
+    amount = amount,
+    currency = currency,
+    issueDate = issueDateEpochDay?.let(LocalDate::ofEpochDay),
+    dueDate = dueDateEpochDay?.let(LocalDate::ofEpochDay),
 )

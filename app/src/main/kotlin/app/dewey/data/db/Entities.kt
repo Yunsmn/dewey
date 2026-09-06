@@ -38,6 +38,25 @@ data class DocumentRow(
     @ColumnInfo(name = "classify_margin") val classifyMargin: Float? = null,
     /** The folder this document was moved into, if it was. */
     @ColumnInfo(name = "sorted_folder") val sortedFolder: String? = null,
+    /**
+     * Fields pulled out of [text] by FieldExtractor at import time - see
+     * app.dewey.extract.FieldExtractor. Computed once and stored rather than
+     * recomputed on read for the same reason [text] itself is: re-deriving
+     * these from a scanned document's text means nothing without the text
+     * being held anyway, but the library screen reads them on every
+     * recomposition and should not be re-running regexes to do it.
+     */
+    @ColumnInfo(name = "vendor") val vendor: String? = null,
+    @ColumnInfo(name = "amount") val amount: Double? = null,
+    @ColumnInfo(name = "currency") val currency: String? = null,
+    /**
+     * Stored as an epoch day ([java.time.LocalDate.toEpochDay]), not epoch
+     * millis - these are calendar dates with no time-of-day, and an epoch day
+     * has no time zone to get wrong on a device that reads the SD card in one
+     * zone and opens the app in another.
+     */
+    @ColumnInfo(name = "issue_date") val issueDateEpochDay: Long? = null,
+    @ColumnInfo(name = "due_date") val dueDateEpochDay: Long? = null,
 )
 
 @Entity(

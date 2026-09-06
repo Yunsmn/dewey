@@ -1,5 +1,7 @@
 package app.dewey.domain.model
 
+import java.time.LocalDate
+
 /**
  * A document Dewey knows about.
  *
@@ -19,6 +21,15 @@ data class Document(
     val language: String? = null,
     val textSource: TextSource = TextSource.NONE,
     val indexedAt: Long? = null,
+    /**
+     * See app.dewey.extract.FieldExtractor. Every field is independently
+     * nullable - a document with an amount but no vendor is a valid result.
+     */
+    val vendor: String? = null,
+    val amount: Double? = null,
+    val currency: String? = null,
+    val issueDate: LocalDate? = null,
+    val dueDate: LocalDate? = null,
 ) {
     val isIndexed: Boolean get() = indexedAt != null
 }

@@ -144,6 +144,7 @@ private fun LibraryContent(
                         title = document.title(),
                         subtitle = document.subtitle(),
                         filename = document.displayName,
+                        trailing = formatAmount(document.amount),
                         onClick = { onOpenDocument(document) },
                     )
                     HorizontalDivider(color = Dewey.colors.rule, thickness = 1.dp)
@@ -244,11 +245,13 @@ private fun countLabel(count: Int, noun: String): String =
     if (count == 1) "1 $noun" else "$count ${noun}s"
 
 /**
- * Null until the document has been classified, which is the honest answer —
- * the filename is not a title, and dressing it up as one helps nobody.
+ * Vendor plus a human month-and-year where the extractor found a date, or
+ * just the vendor, or - unclassified, or classified but with nothing the
+ * extractor could name - null, which is the honest answer: the filename is
+ * not a title, and dressing it up as one helps nobody.
  */
 private fun Document.title(): String? =
-    if (docType == DocType.UNKNOWN) null else displayName.substringBeforeLast('.')
+    if (docType == DocType.UNKNOWN) null else documentTitle(vendor, issueDate, dueDate)
 
 /** Why this document is waiting, in words rather than an enum name. */
 private fun Document.reviewSubtitle(): String {

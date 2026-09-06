@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [DocumentRow::class, ChunkRow::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class DeweyDatabase : RoomDatabase() {
@@ -34,11 +34,29 @@ abstract class DeweyDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Adds the extracted-fields columns (vendor, amount, currency, the two
+         * dates).
+         *
+         * Same reasoning as MIGRATION_1_2: destructive would mean re-running OCR
+         * over every scanned file in the library on upgrade, which is minutes of
+         * work the user has already paid for once.
+         */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE documents ADD COLUMN vendor TEXT")
+                db.execSQL("ALTER TABLE documents ADD COLUMN amount REAL")
+                db.execSQL("ALTER TABLE documents ADD COLUMN currency TEXT")
+                db.execSQL("ALTER TABLE documents ADD COLUMN issue_date INTEGER")
+                db.execSQL("ALTER TABLE documents ADD COLUMN due_date INTEGER")
+            }
+        }
+
         fun open(context: Context): DeweyDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 DeweyDatabase::class.java,
                 "dewey.db",
-            ).addMigrations(MIGRATION_1_2).build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     }
 }
