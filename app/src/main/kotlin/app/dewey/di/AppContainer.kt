@@ -64,7 +64,7 @@ class AppContainer(private val context: Context) {
             pdfText = PdfTextExtractor(context.contentResolver),
             ocrText = OcrTextExtractor(context.contentResolver),
             chunker = Chunker(),
-            embedder = embedder,
+            embedder = { embedder },
         )
     }
 

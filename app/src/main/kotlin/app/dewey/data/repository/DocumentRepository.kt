@@ -32,7 +32,18 @@ class DocumentRepository(
     private val pdfText: PdfTextExtractor,
     private val ocrText: OcrTextExtractor,
     private val chunker: Chunker,
-    private val embedder: Embedder,
+    /**
+     * A provider rather than an instance, deliberately.
+     *
+     * Constructing the encoder copies a 118MB model out of the APK and builds an
+     * ONNX session. Holding one here meant simply constructing this repository
+     * did that work — and the library screen constructs it during composition, on
+     * the main thread, on first launch. On an emulator's host-backed disk that
+     * read as a slow start; on real flash it is a frozen screen and an ANR the
+     * moment anything is tapped. Nothing on the library path needs the encoder;
+     * only indexing does, so only indexing pays for it.
+     */
+    private val embedder: () -> Embedder,
 ) {
 
     fun observeDocuments(): Flow<List<Document>> =
@@ -107,7 +118,7 @@ class DocumentRepository(
             return
         }
 
-        val vectors = embedder.embedPassages(passages)
+        val vectors = embedder().embedPassages(passages)
         check(vectors.size == passages.size) {
             "Embedder returned ${vectors.size} vectors for ${passages.size} passages"
         }

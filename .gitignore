@@ -10,7 +10,11 @@ captures/
 *.apk
 *.aab
 *.keystore
-google-services*.json  # browsers save re-downloads as 'google-services (1).json'
+# Firebase config: identifies a specific project and carries an API key.
+# The glob catches browser re-downloads saved as 'google-services (1).json'.
+# NB: a trailing comment on a pattern line does NOT work — gitignore treats
+# the whole line as the pattern, which is how this file came to be committed.
+google-services*.json
 
 # Encoder assets, derived from a third-party model. Regenerate with:
 #   tools/eval/fetch_model.sh && python tools/model/prepare_assets.py --model-dir tools/eval/model
