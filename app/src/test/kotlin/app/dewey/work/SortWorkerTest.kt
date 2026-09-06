@@ -1,0 +1,143 @@
+package app.dewey.work
+
+import android.net.Uri
+import app.dewey.data.storage.SafDocument
+import app.dewey.sort.DocumentMover
+import com.google.common.truth.Truth.assertThat
+import io.mockk.every
+import io.mockk.mockk
+import org.junit.Test
+
+/**
+ * The two rules a second sort and an undo both depend on: recognising a
+ * document that is already filed, and remembering where a nested document
+ * actually came from.
+ *
+ * Kept to plain data plus mockk'd [Uri] tokens rather than a running
+ * [SortWorker]: this project's unit tests do not use Robolectric (see
+ * DocumentMoverTest's own note on the same problem), and a real [Uri]'s
+ * equals, hashCode and toString all throw "not mocked" outside one. mockk
+ * never calls through to that real implementation, so a mock is the only way
+ * to hold a [Uri] value here at all — these tests only ever compare mocked
+ * instances against each other, never against a real one.
+ */
+class SortWorkerTest {
+
+    private fun uri(label: String): Uri {
+        val mock = mockk<Uri>(relaxed = true)
+        every { mock.toString() } returns label
+        return mock
+    }
+
+    private fun folder(documentId: String, displayName: String) = SafDocument(
+        uri = uri("content://tree/root/document/$documentId"),
+        documentId = documentId,
+        parentDocumentId = "root",
+        parentUri = uri("content://tree/root"),
+        displayName = displayName,
+        mimeType = "vnd.android.document/directory",
+        sizeBytes = 0L,
+        lastModified = 0L,
+    )
+
+    private fun document(
+        documentId: String = "doc",
+        parentDocumentId: String = "root",
+        parentUri: Uri = uri("content://tree/root"),
+        displayName: String = "file.pdf",
+    ) = SafDocument(
+        uri = uri("content://tree/root/document/$documentId"),
+        documentId = documentId,
+        parentDocumentId = parentDocumentId,
+        parentUri = parentUri,
+        displayName = displayName,
+        mimeType = "application/pdf",
+        sizeBytes = 1_000L,
+        lastModified = 0L,
+    )
+
+    @Test
+    fun `recognises only the top-level folders that are the app's own categories`() {
+        val folders = listOf(
+            folder("f1", "Bills"),
+            folder("f2", "some unrelated folder the user already had"),
+            folder("f3", "Bank"),
+        )
+
+        assertThat(alreadyFiledFolderIds(folders)).containsExactly("f1", "f3")
+    }
+
+    @Test
+    fun `no category folders yet means nothing is already filed`() {
+        assertThat(alreadyFiledFolderIds(emptyList())).isEmpty()
+    }
+
+    @Test
+    fun `a document sitting directly inside a category folder is already filed`() {
+        val billsId = "bills-folder-id"
+        val documentInBills = document(parentDocumentId = billsId)
+
+        assertThat(documentInBills.isAlreadyFiled(setOf(billsId))).isTrue()
+    }
+
+    @Test
+    fun `a document still at the tree root is not already filed`() {
+        val documentAtRoot = document(parentDocumentId = "root")
+
+        assertThat(documentAtRoot.isAlreadyFiled(setOf("bills-folder-id"))).isFalse()
+    }
+
+    @Test
+    fun `a second sort over an already-sorted layout finds nothing left to do`() {
+        // The end-to-end shape of defect #2: findPdfs() walks into Bills and
+        // Bank on a rerun, and every one of those documents must be recognised
+        // as already filed rather than counted toward review.
+        val categoryFolderIds = alreadyFiledFolderIds(
+            listOf(folder("bills-id", "Bills"), folder("bank-id", "Bank")),
+        )
+        val secondPassDocuments = listOf(
+            document(documentId = "1", parentDocumentId = "bills-id"),
+            document(documentId = "2", parentDocumentId = "bank-id"),
+        )
+
+        assertThat(secondPassDocuments.all { it.isAlreadyFiled(categoryFolderIds) }).isTrue()
+    }
+
+    @Test
+    fun `the undo record keeps the document's own parent, not the tree root`() {
+        // Defect #3: a document that started inside a subfolder must be put
+        // back there by undo, not dumped at the top level of the tree.
+        val treeRoot = uri("content://tree/root")
+        val nestedParent = uri("content://tree/root/document/statements-2023")
+        val nestedDocument = document(documentId = "doc-1", parentUri = nestedParent, displayName = "statement.pdf")
+        val targetParent = uri("content://tree/root/document/Bank")
+        val outcome = DocumentMover.Outcome.Moved(
+            from = nestedDocument.uri,
+            to = uri("content://tree/root/document/Bank/statement.pdf"),
+            folder = "Bank",
+        )
+
+        val record = nestedDocument.undoRecord(outcome, targetParent, "Bank")
+
+        assertThat(record.originalParentUri).isEqualTo(nestedParent.toString())
+        assertThat(record.originalParentUri).isNotEqualTo(treeRoot.toString())
+    }
+
+    @Test
+    fun `the undo record carries the move's own from and to uris`() {
+        val movedDocument = document(documentId = "doc-1")
+        val outcome = DocumentMover.Outcome.Moved(
+            from = movedDocument.uri,
+            to = uri("content://tree/root/document/Bills/doc-1"),
+            folder = "Bills",
+        )
+        val targetParent = uri("content://tree/root/document/Bills")
+
+        val record = movedDocument.undoRecord(outcome, targetParent, "Bills")
+
+        assertThat(record.documentUri).isEqualTo(outcome.from.toString())
+        assertThat(record.movedToUri).isEqualTo(outcome.to.toString())
+        assertThat(record.targetParentUri).isEqualTo(targetParent.toString())
+        assertThat(record.folderName).isEqualTo("Bills")
+    }
+}

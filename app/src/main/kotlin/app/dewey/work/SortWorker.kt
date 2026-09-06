@@ -10,6 +10,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import app.dewey.classify.DocumentClassifier
 import app.dewey.data.db.DocumentDao
+import app.dewey.data.storage.SafDocument
 import app.dewey.data.storage.SafDocumentSource
 import app.dewey.domain.model.DocType
 import app.dewey.sort.DocumentMover
@@ -62,16 +63,23 @@ class SortWorker(
         runCatching { setForeground(getForegroundInfo()) }
 
         val documents = source.findPdfs(treeUri)
-        if (documents.isEmpty()) return Result.success(summary(0, 0, 0))
+        if (documents.isEmpty()) return Result.success(summary(moved = 0, review = 0, folders = 0, failed = 0))
 
         // Indexed text is keyed by URI: sorting classifies from text that was
         // already extracted at import rather than re-reading every PDF, which is
         // the difference between a minute and twenty.
         val textByUri = documentDao.allIndexed().associateBy { it.uri }
 
+        // findPdfs() walks subfolders, so a second sort re-enumerates everything
+        // an earlier run already filed into Bills, Bank, and so on. Recognising
+        // those by their parent folder — rather than by re-classifying them —
+        // is what makes a rerun a no-op instead of a wall of false reviews.
+        val alreadyFiledFolderIds = alreadyFiledFolderIds(source.topLevelFolders(treeUri))
+
         undoLog.begin(UUID.randomUUID().toString(), treeUri.toString())
 
         val folders = HashMap<DocType, Uri>()
+        val usedFolders = HashSet<String>()
         var moved = 0
         var review = 0
         var failed = 0
@@ -79,6 +87,12 @@ class SortWorker(
         documents.forEachIndexed { position, document ->
             coroutineContext.ensureActive()
             publish(position, documents.size, document.displayName)
+
+            if (document.isAlreadyFiled(alreadyFiledFolderIds)) {
+                // Already sorted by an earlier run. Not moved, not a review —
+                // simply not this run's business.
+                return@forEachIndexed
+            }
 
             val row = textByUri[document.uri.toString()]
             if (row?.text.isNullOrBlank()) {
@@ -110,26 +124,19 @@ class SortWorker(
                     when (val outcome = mover.move(
                         document = document.uri,
                         displayName = document.displayName,
-                        sourceParent = treeUri,
+                        sourceParent = document.parentUri,
                         targetParent = target,
                         folderName = folderName,
                     )) {
                         is DocumentMover.Outcome.Moved -> {
                             documentDao.recordMove(row.id, outcome.to.toString(), folderName)
-                            undoLog.record(
-                                UndoLog.Move(
-                                    documentUri = outcome.from.toString(),
-                                    movedToUri = outcome.to.toString(),
-                                    originalParentUri = treeUri.toString(),
-                                    targetParentUri = target.toString(),
-                                    displayName = document.displayName,
-                                    folderName = folderName,
-                                )
-                            )
+                            undoLog.record(document.undoRecord(outcome, target, folderName))
+                            usedFolders += folderName
                             moved++
                         }
                         is DocumentMover.Outcome.Skipped -> {
                             Log.i(TAG, "Skipped ${document.displayName}: ${outcome.why}")
+                            markForReview(row.id, outcome.why, verdict.margin)
                             review++
                         }
                         is DocumentMover.Outcome.Failed -> {
@@ -142,7 +149,7 @@ class SortWorker(
         }
 
         publish(documents.size, documents.size, null)
-        return Result.success(summary(moved, review, failed))
+        return Result.success(summary(moved, review, usedFolders.size, failed))
     }
 
     private suspend fun markForReview(id: Long?, reason: String, margin: Float?) {
@@ -163,10 +170,11 @@ class SortWorker(
         }
     }
 
-    private fun summary(moved: Int, review: Int, failed: Int): Data =
+    private fun summary(moved: Int, review: Int, folders: Int, failed: Int): Data =
         Data.Builder()
             .putInt(KEY_MOVED, moved)
             .putInt(KEY_REVIEW, review)
+            .putInt(KEY_FOLDERS, folders)
             .putInt(IndexWorker.KEY_FAILED, failed)
             .build()
 
@@ -176,6 +184,7 @@ class SortWorker(
         const val KEY_TREE_URI = "tree_uri"
         const val KEY_MOVED = "moved"
         const val KEY_REVIEW = "review"
+        const val KEY_FOLDERS = "folders"
         const val KEY_ERROR = "error"
 
         /** Folder names as a person would write them, not enum constants. */
@@ -194,5 +203,49 @@ class SortWorker(
             DocType.TRAVEL -> "Travel"
             DocType.UNKNOWN -> "Unsorted"
         }
+
+        /** Every folder name [folderName] can produce, for spotting an already-filed document. */
+        val CATEGORY_FOLDER_NAMES: Set<String> = DocType.entries.map { it.folderName() }.toSet()
     }
 }
+
+/**
+ * The document ids of [topLevelFolders] that are one of the app's own category folders.
+ *
+ * Kept apart from [SortWorker] so the rule that makes a second sort a no-op —
+ * "a document already sitting in Bills is not this run's business" — is a
+ * plain function over data, testable without a CoroutineWorker.
+ */
+internal fun alreadyFiledFolderIds(topLevelFolders: List<SafDocument>): Set<String> =
+    topLevelFolders.filter { it.displayName in SortWorker.CATEGORY_FOLDER_NAMES }
+        .mapTo(HashSet()) { it.documentId }
+
+/**
+ * Whether this document already sits directly inside one of [folderIds].
+ *
+ * Compared by document id rather than by [SafDocument.parentUri]: the id is a
+ * plain string the provider assigned, while two URIs naming the same folder
+ * are not guaranteed to compare equal byte-for-byte across providers.
+ */
+internal fun SafDocument.isAlreadyFiled(folderIds: Set<String>): Boolean =
+    parentDocumentId in folderIds
+
+/**
+ * The undo entry for a document [SortWorker] just moved.
+ *
+ * [UndoLog.Move.originalParentUri] is this document's own parent, not the
+ * root of the tree being sorted — a document that started inside a subfolder
+ * must be put back there, not dumped at the top level.
+ */
+internal fun SafDocument.undoRecord(
+    outcome: DocumentMover.Outcome.Moved,
+    targetParent: Uri,
+    folderName: String,
+): UndoLog.Move = UndoLog.Move(
+    documentUri = outcome.from.toString(),
+    movedToUri = outcome.to.toString(),
+    originalParentUri = parentUri.toString(),
+    targetParentUri = targetParent.toString(),
+    displayName = displayName,
+    folderName = folderName,
+)

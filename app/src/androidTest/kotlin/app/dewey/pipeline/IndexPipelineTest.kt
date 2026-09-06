@@ -90,9 +90,14 @@ class IndexPipelineTest {
         testAssets.assets.open("corpus/$name").use { input ->
             file.outputStream().use(input::copyTo)
         }
+        // Not a real SAF tree — this pipeline test stages files by plain path —
+        // so the parent fields are a placeholder rather than a meaningful folder.
+        val parent = Uri.fromFile(context.cacheDir)
         return SafDocument(
             uri = Uri.fromFile(file),
             documentId = name,
+            parentDocumentId = context.cacheDir.name,
+            parentUri = parent,
             displayName = name,
             mimeType = "application/pdf",
             sizeBytes = file.length(),

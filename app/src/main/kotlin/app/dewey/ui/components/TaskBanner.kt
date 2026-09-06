@@ -85,6 +85,20 @@ fun TaskBanner(
             modifier = modifier,
         )
 
+        is TaskState.Sorted -> Banner(
+            text = sortedMessage(state),
+            background = if (state.review == 0 && state.failed == 0) Dewey.colors.accentSoft else Dewey.colors.attentionSoft,
+            foreground = if (state.review == 0 && state.failed == 0) Dewey.colors.accent else Dewey.colors.attention,
+            modifier = modifier,
+        )
+
+        is TaskState.Restored -> Banner(
+            text = restoredMessage(state),
+            background = if (state.failed == 0) Dewey.colors.accentSoft else Dewey.colors.attentionSoft,
+            foreground = if (state.failed == 0) Dewey.colors.accent else Dewey.colors.attention,
+            modifier = modifier,
+        )
+
         is TaskState.Failed -> Banner(
             text = state.message,
             background = Dewey.colors.attentionSoft,
@@ -100,6 +114,49 @@ fun TaskBanner(
         )
     }
 }
+
+/**
+ * "Filed 108 documents into 7 folders. 3 need a look."
+ *
+ * This copy is what the demo rests on, so it says what actually happened
+ * rather than reusing the indexing banner's "shelved" language, which does
+ * not fit a job that also leaves some documents where they were.
+ */
+private fun sortedMessage(state: TaskState.Sorted): String {
+    val filed = if (state.moved == 0) {
+        "Nothing new to file."
+    } else {
+        "Filed ${state.moved.withNoun("document")} into ${state.folders.withNoun("folder")}."
+    }
+    val review = when {
+        state.review <= 0 -> null
+        state.review == 1 -> "1 needs a look."
+        else -> "${state.review} need a look."
+    }
+    val failed = when {
+        state.failed <= 0 -> null
+        state.failed == 1 -> "1 couldn't be filed."
+        else -> "${state.failed} couldn't be filed."
+    }
+    return listOfNotNull(filed, review, failed).joinToString(" ")
+}
+
+private fun restoredMessage(state: TaskState.Restored): String {
+    val restored = if (state.restored == 0) {
+        "Nothing to put back."
+    } else {
+        "Put ${state.restored.withNoun("document")} back."
+    }
+    val failed = when {
+        state.failed <= 0 -> null
+        state.failed == 1 -> "1 couldn't be restored."
+        else -> "${state.failed} couldn't be restored."
+    }
+    return listOfNotNull(restored, failed).joinToString(" ")
+}
+
+/** "1 document", "7 folders" — the count a person would actually write. */
+private fun Int.withNoun(noun: String): String = if (this == 1) "1 $noun" else "$this ${noun}s"
 
 @Composable
 private fun Banner(
@@ -149,6 +206,9 @@ private fun TaskBannerPreview() {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(16.dp)) {
             TaskBanner(TaskState.Running(37, 312, "Scan_20240312_004.pdf"), {})
             TaskBanner(TaskState.Finished(310, 2), {})
+            TaskBanner(TaskState.Sorted(moved = 108, review = 3, folders = 7, failed = 0), {})
+            TaskBanner(TaskState.Sorted(moved = 0, review = 0, folders = 0, failed = 0), {})
+            TaskBanner(TaskState.Restored(restored = 108, failed = 0), {})
             TaskBanner(TaskState.Cancelled, {})
         }
     }

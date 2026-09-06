@@ -15,6 +15,7 @@ import app.dewey.work.TaskState
 import app.dewey.sort.UndoLog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -111,7 +112,6 @@ class LibraryViewModel(
         viewModelScope.launch {
             val tree = treeStore.grantedTrees.first().firstOrNull() ?: return@launch
             taskRunner.startSort(tree)
-            undoAvailable.value = true
         }
     }
 
@@ -124,6 +124,19 @@ class LibraryViewModel(
         // Whether a previous sort is still undoable outlives this ViewModel, so
         // it is read from the log rather than assumed false on every launch.
         viewModelScope.launch { undoAvailable.value = undoLog.latest() != null }
+
+        // A sort that files nothing — an empty folder, or a rerun over an
+        // already-sorted one — writes nothing to the undo log, so "undo" must
+        // not be offered just because a sort started. Re-reading the log once
+        // the task settles is the only way the button tracks reality rather
+        // than optimism.
+        viewModelScope.launch {
+            taskRunner.observe(DeweyTask.SORT).collect { sortTask ->
+                if (sortTask.isTerminal) {
+                    undoAvailable.value = undoLog.latest() != null
+                }
+            }
+        }
     }
 
     companion object {

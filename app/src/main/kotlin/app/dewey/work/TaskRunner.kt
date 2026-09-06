@@ -60,7 +60,7 @@ class TaskRunner(context: Context) {
 
     fun observe(task: DeweyTask): Flow<TaskState> =
         workManager.getWorkInfosForUniqueWorkFlow(task.uniqueName)
-            .map { infos -> infos.firstOrNull().toTaskState() }
+            .map { infos -> infos.firstOrNull().toTaskState(task) }
 
     /**
      * Cancels by unique name, which reaches the worker actually running.
@@ -72,22 +72,58 @@ class TaskRunner(context: Context) {
     fun cancel(task: DeweyTask) {
         workManager.cancelUniqueWork(task.uniqueName)
     }
+}
 
-    private fun WorkInfo?.toTaskState(): TaskState = when (this?.state) {
-        null -> TaskState.Idle
-        WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> TaskState.Running(0, 0, null)
-        WorkInfo.State.RUNNING -> TaskState.Running(
-            completed = progress.getInt(IndexWorker.KEY_COMPLETED, 0),
-            total = progress.getInt(IndexWorker.KEY_TOTAL, 0),
-            currentItem = progress.getString(IndexWorker.KEY_CURRENT),
-        )
-        WorkInfo.State.SUCCEEDED -> TaskState.Finished(
+/**
+ * Maps a work item to UI state, per the task it belongs to.
+ *
+ * [WorkInfo.State.SUCCEEDED] and [WorkInfo.State.FAILED] both need the task's
+ * identity: the three workers write their counts and error message under
+ * different keys, and reading every finished job as though it were
+ * [IndexWorker] is how a completed sort ends up reporting zero.
+ *
+ * A top-level function rather than a private member of [TaskRunner] so it can
+ * be pinned with a plain unit test against a constructed [WorkInfo], with no
+ * [android.content.Context] or running [androidx.work.WorkManager] involved.
+ */
+internal fun WorkInfo?.toTaskState(task: DeweyTask): TaskState = when (this?.state) {
+    null -> TaskState.Idle
+    WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> TaskState.Running(0, 0, null)
+    WorkInfo.State.RUNNING -> TaskState.Running(
+        completed = progress.getInt(IndexWorker.KEY_COMPLETED, 0),
+        total = progress.getInt(IndexWorker.KEY_TOTAL, 0),
+        currentItem = progress.getString(IndexWorker.KEY_CURRENT),
+    )
+    WorkInfo.State.SUCCEEDED -> when (task) {
+        DeweyTask.INDEX -> TaskState.Finished(
             processed = outputData.getInt(IndexWorker.KEY_PROCESSED, 0),
             failed = outputData.getInt(IndexWorker.KEY_FAILED, 0),
         )
-        WorkInfo.State.FAILED -> TaskState.Failed(
-            outputData.getString(IndexWorker.KEY_ERROR) ?: "Indexing failed"
+        DeweyTask.SORT -> TaskState.Sorted(
+            moved = outputData.getInt(SortWorker.KEY_MOVED, 0),
+            review = outputData.getInt(SortWorker.KEY_REVIEW, 0),
+            folders = outputData.getInt(SortWorker.KEY_FOLDERS, 0),
+            failed = outputData.getInt(IndexWorker.KEY_FAILED, 0),
         )
-        WorkInfo.State.CANCELLED -> TaskState.Cancelled
+        DeweyTask.UNDO -> TaskState.Restored(
+            restored = outputData.getInt(UndoSortWorker.KEY_RESTORED, 0),
+            failed = outputData.getInt(UndoSortWorker.KEY_FAILED, 0),
+        )
     }
+    WorkInfo.State.FAILED -> TaskState.Failed(
+        outputData.getString(task.errorKey()) ?: task.defaultFailureMessage()
+    )
+    WorkInfo.State.CANCELLED -> TaskState.Cancelled
+}
+
+private fun DeweyTask.errorKey(): String = when (this) {
+    DeweyTask.INDEX -> IndexWorker.KEY_ERROR
+    DeweyTask.SORT -> SortWorker.KEY_ERROR
+    DeweyTask.UNDO -> UndoSortWorker.KEY_ERROR
+}
+
+private fun DeweyTask.defaultFailureMessage(): String = when (this) {
+    DeweyTask.INDEX -> "Indexing failed"
+    DeweyTask.SORT -> "Sort failed"
+    DeweyTask.UNDO -> "Undo failed"
 }

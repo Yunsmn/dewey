@@ -40,7 +40,22 @@ sealed interface TaskState {
 
     data class Finished(val processed: Int, val failed: Int) : TaskState
 
+    /**
+     * A completed sort.
+     *
+     * [folders] is the count of distinct destination folders a document was
+     * actually filed into — not every category folder that exists, and not
+     * folders looked up but never used — because that is the number the banner
+     * puts in front of the user.
+     */
+    data class Sorted(val moved: Int, val review: Int, val folders: Int, val failed: Int) : TaskState
+
+    data class Restored(val restored: Int, val failed: Int) : TaskState
+
     data class Failed(val message: String) : TaskState
 
     data object Cancelled : TaskState
+
+    /** True once a task has settled — anything other than not-yet-started or in-progress. */
+    val isTerminal: Boolean get() = this !is Idle && this !is Running
 }

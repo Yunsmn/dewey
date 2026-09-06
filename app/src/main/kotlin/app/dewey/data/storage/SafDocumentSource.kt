@@ -59,6 +59,24 @@ class SafDocumentSource(
         found
     }
 
+    /**
+     * The direct subfolders of [treeUri], not walked further.
+     *
+     * Lets a caller recognise a document that already sits in one of the app's
+     * own category folders — Bills, Bank, and so on — without re-walking the
+     * whole tree. [findPdfs] descends into these same folders on a second sort,
+     * which is exactly the case that needs telling apart from a document still
+     * sitting where the user left it.
+     */
+    suspend fun topLevelFolders(treeUri: Uri): List<SafDocument> = withContext(io) {
+        val rootId = runCatching { DocumentsContract.getTreeDocumentId(treeUri) }
+            .getOrElse {
+                Log.w(TAG, "Not a document tree: $treeUri", it)
+                return@withContext emptyList()
+            }
+        listChildren(treeUri, rootId).filter { it.isDirectory }
+    }
+
     private fun listChildren(treeUri: Uri, parentDocumentId: String): List<SafDocument> {
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocumentId)
         val children = mutableListOf<SafDocument>()
@@ -79,6 +97,8 @@ class SafDocumentSource(
                     children += SafDocument(
                         uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId),
                         documentId = documentId,
+                        parentDocumentId = parentDocumentId,
+                        parentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, parentDocumentId),
                         displayName = cursor.getString(nameColumn) ?: documentId,
                         mimeType = cursor.getString(mimeColumn).orEmpty(),
                         sizeBytes = if (cursor.isNull(sizeColumn)) 0L else cursor.getLong(sizeColumn),
@@ -108,6 +128,10 @@ class SafDocumentSource(
 data class SafDocument(
     val uri: Uri,
     val documentId: String,
+    /** The document id of the folder this was listed under. */
+    val parentDocumentId: String,
+    /** [parentDocumentId] as a document URI, for a direct comparison against a folder's own [uri]. */
+    val parentUri: Uri,
     val displayName: String,
     val mimeType: String,
     val sizeBytes: Long,
