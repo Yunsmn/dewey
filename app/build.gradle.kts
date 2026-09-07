@@ -83,6 +83,26 @@ android {
         }
     }
 
+    /**
+     * One APK per architecture instead of one carrying all four.
+     *
+     * ONNX Runtime ships a native library per ABI and they are the largest
+     * things in the package: a universal APK is 239MB, of which any given phone
+     * uses about a third. Installing an app should not cost someone 150MB of
+     * libraries for processors they do not have.
+     *
+     * x86 (32-bit) is left out — nothing that can run this has one. x86_64 stays
+     * because that is what the emulator uses.
+     */
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
+    }
+
     buildTypes {
         release {
             if (hasSigningCredentials) {

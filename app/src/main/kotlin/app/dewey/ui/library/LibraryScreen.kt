@@ -32,6 +32,7 @@ import app.dewey.ui.components.PrimaryAction
 import app.dewey.ui.components.SecondaryAction
 import app.dewey.ui.components.SectionHeading
 import app.dewey.ui.components.TaskBanner
+import app.dewey.ui.components.rememberNotificationPermissionRequest
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
 import app.dewey.work.TaskState
@@ -46,11 +47,21 @@ fun LibraryScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    // Asked for here rather than at launch — granting a folder is the moment
+    // indexing starts, which is the first time a progress notification has
+    // anything to say. See rememberNotificationPermissionRequest.
+    val askAboutNotifications = rememberNotificationPermissionRequest()
+
     // OpenDocumentTree is the sanctioned way to get a folder. The user picks it;
     // the app never enumerates storage it was not handed.
     val pickFolder = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
-    ) { uri -> uri?.let(viewModel::onFolderGranted) }
+    ) { uri ->
+        uri?.let {
+            viewModel.onFolderGranted(it)
+            askAboutNotifications()
+        }
+    }
 
     LibraryContent(
         state = state,
