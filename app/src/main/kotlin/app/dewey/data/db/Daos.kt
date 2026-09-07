@@ -41,6 +41,21 @@ interface DocumentDao {
     @Query("SELECT * FROM documents WHERE review_reason IS NOT NULL ORDER BY classify_margin ASC")
     fun observeNeedingReview(): Flow<List<DocumentRow>>
 
+    /**
+     * A bill is a document with both a due date and an amount - see
+     * app.dewey.ui.bills.BillGrouping. Ordered soonest-due-first here so the
+     * grouping layer only ever has to bucket an already-sorted list, never
+     * re-sort it.
+     */
+    @Query(
+        """
+        SELECT * FROM documents
+        WHERE due_date IS NOT NULL AND amount IS NOT NULL
+        ORDER BY due_date ASC
+        """
+    )
+    fun observeBills(): Flow<List<DocumentRow>>
+
     @Query(
         """
         UPDATE documents

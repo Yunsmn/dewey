@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -44,6 +45,10 @@ fun DocumentRow(
     trailing: String? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // Overridable for the one case that needs it: an overdue bill's due date
+    // reads in Dewey.colors.attention rather than the usual muted ink. See
+    // app.dewey.ui.bills.BillsScreen.
+    subtitleColor: Color = Dewey.colors.inkMuted,
 ) {
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
@@ -82,7 +87,7 @@ fun DocumentRow(
                 Text(
                     text = subtitle,
                     style = Dewey.type.Meta,
-                    color = Dewey.colors.inkMuted,
+                    color = subtitleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 2.dp),

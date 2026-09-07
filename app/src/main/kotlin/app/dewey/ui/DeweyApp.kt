@@ -12,6 +12,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import app.dewey.di.AppContainer
 import app.dewey.domain.model.Document
+import app.dewey.ui.bills.BillsScreen
+import app.dewey.ui.bills.BillsViewModel
 import app.dewey.ui.library.LibraryScreen
 import app.dewey.ui.library.LibraryViewModel
 import app.dewey.ui.search.SearchScreen
@@ -20,6 +22,7 @@ import app.dewey.ui.search.SearchViewModel
 private object Routes {
     const val LIBRARY = "library"
     const val SEARCH = "search"
+    const val BILLS = "bills"
 }
 
 @Composable
@@ -50,12 +53,20 @@ fun DeweyApp(container: AppContainer) {
             LibraryScreen(
                 viewModel = model,
                 onSearch = { navController.navigate(Routes.SEARCH) },
+                onBills = { navController.navigate(Routes.BILLS) },
                 onOpenDocument = onOpenDocument,
             )
         }
         composable(Routes.SEARCH) {
             val model: SearchViewModel = viewModel(factory = SearchViewModel.factory(container))
             SearchScreen(
+                viewModel = model,
+                onOpenDocument = onOpenDocument,
+            )
+        }
+        composable(Routes.BILLS) {
+            val model: BillsViewModel = viewModel(factory = BillsViewModel.factory(container))
+            BillsScreen(
                 viewModel = model,
                 onOpenDocument = onOpenDocument,
             )

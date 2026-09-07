@@ -40,6 +40,7 @@ import app.dewey.work.TaskState
 fun LibraryScreen(
     viewModel: LibraryViewModel,
     onSearch: () -> Unit,
+    onBills: () -> Unit,
     onOpenDocument: (Document) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -54,6 +55,7 @@ fun LibraryScreen(
     LibraryContent(
         state = state,
         onSearch = onSearch,
+        onBills = onBills,
         onAddFolder = { pickFolder.launch(null) },
         onCancelIndexing = viewModel::onCancelIndexing,
         onSort = viewModel::onSort,
@@ -67,6 +69,7 @@ fun LibraryScreen(
 private fun LibraryContent(
     state: LibraryUiState,
     onSearch: () -> Unit,
+    onBills: () -> Unit,
     onAddFolder: () -> Unit,
     onCancelIndexing: () -> Unit,
     onSort: () -> Unit,
@@ -88,7 +91,7 @@ private fun LibraryContent(
             ),
         ) {
             item(key = "masthead") {
-                Masthead(state, onSearch)
+                Masthead(state, onSearch, onBills)
                 Spacer(Modifier.height(Dewey.spacing.gutter))
             }
 
@@ -183,7 +186,7 @@ private fun LibraryActions(state: LibraryUiState, onSort: () -> Unit, onUndo: ()
 }
 
 @Composable
-private fun Masthead(state: LibraryUiState, onSearch: () -> Unit) {
+private fun Masthead(state: LibraryUiState, onSearch: () -> Unit, onBills: () -> Unit) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -191,10 +194,13 @@ private fun Masthead(state: LibraryUiState, onSearch: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Library", style = Dewey.type.Display, color = Dewey.colors.ink)
-            // Search is only meaningful once something is shelved, so it appears
+            // Both are only meaningful once something is shelved, so they appear
             // with the first document rather than sitting dead on an empty page.
             if (state.totalDocuments > 0) {
-                SecondaryAction(label = "Find", onClick = onSearch)
+                Row(horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.tight)) {
+                    SecondaryAction(label = "Bills", onClick = onBills)
+                    SecondaryAction(label = "Find", onClick = onSearch)
+                }
             }
         }
         Spacer(Modifier.height(Dewey.spacing.tight))
@@ -310,6 +316,7 @@ private fun LibraryPreview() {
                 task = TaskState.Running(37, 312, "Scan_20240312_004.pdf"),
             ),
             onSearch = {},
+            onBills = {},
             onAddFolder = {},
             onCancelIndexing = {},
             onSort = {},
@@ -323,6 +330,6 @@ private fun LibraryPreview() {
 @Composable
 private fun LibraryEmptyPreview() {
     DeweyTheme {
-        LibraryContent(LibraryUiState(), {}, {}, {}, {}, {}, {})
+        LibraryContent(LibraryUiState(), {}, {}, {}, {}, {}, {}, {})
     }
 }

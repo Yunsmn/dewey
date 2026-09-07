@@ -55,6 +55,10 @@ class DocumentRepository(
     fun observeNeedingReview(): Flow<List<Document>> =
         documentDao.observeNeedingReview().map { rows -> rows.map(DocumentRow::toDomain) }
 
+    /** Documents with both a due date and an amount - see app.dewey.ui.bills.BillGrouping. */
+    fun observeBills(): Flow<List<Document>> =
+        documentDao.observeBills().map { rows -> rows.map(DocumentRow::toDomain) }
+
     suspend fun byId(id: Long): Document? = documentDao.byId(id)?.toDomain()
 
     /**
