@@ -39,3 +39,9 @@ tools/corpus/real/
 
 # Kotlin build tooling
 .kotlin/
+
+# Release signing credentials. The keystore itself lives outside the repo;
+# this file only points at it and carries its passwords.
+keystore.properties
+*.jks
+*.keystore

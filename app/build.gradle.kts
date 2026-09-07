@@ -1,3 +1,8 @@
+// Fully qualifying java.util.Properties below does not work: inside an Android
+// build script `java` already names the JavaPluginExtension, which shadows the
+// package root.
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -36,6 +41,24 @@ if (hasFirebase) {
     )
 }
 
+/**
+ * Release signing, if credentials are present.
+ *
+ * The competition entry is never published to a store, but "download it like a
+ * real app" means a signed release build rather than a debug APK — a debug APK
+ * is signed with a key every Android developer on earth shares. Credentials live
+ * in an uncommitted keystore.properties pointing at a keystore outside the repo.
+ *
+ * Absent credentials the release variant simply goes unsigned, so a clean clone
+ * still builds. The same reasoning as the optional google-services.json.
+ */
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val hasSigningCredentials = keystoreProperties.getProperty("storeFile")
+    ?.let { file(it).exists() } == true
+
 android {
     namespace = "app.dewey"
     compileSdk = 36
@@ -49,8 +72,26 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasSigningCredentials) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (hasSigningCredentials) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                logger.lifecycle(
+                    "Dewey: no keystore.properties — the release build will be unsigned."
+                )
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
