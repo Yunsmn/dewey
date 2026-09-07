@@ -122,8 +122,14 @@ starts it.
 ### Cloud access: Firebase AI Logic
 
 The repo is public, so an API key cannot live in it. Firebase AI Logic proxies
-requests and attests the caller with App Check, so no key is committed and there
-is no separate backend to deploy or keep alive.
+the request through Google's own credentials, which arrive in
+`google-services.json` — a file this repo does not commit and does not need to
+build. So no key is in the source, and there is no separate backend to deploy or
+keep alive.
+
+App Check would be the next thing to add here: it is what stops a copy of the
+config file being used from somewhere that is not this app. It is not wired up
+yet, and the app builds and runs without it.
 
 ### Long-running work
 

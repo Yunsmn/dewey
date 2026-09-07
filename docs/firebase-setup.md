@@ -76,33 +76,38 @@ Firebase's other product areas sit.
    called Vertex AI; it was renamed, and it requires a billing account.
 4. Let the workflow enable the APIs it asks for.
 
-> The workflow **turns App Check enforcement on automatically**. That is good for
-> a public repo and it means the emulator will be refused until you register a
-> debug token — step 5 is therefore required, not optional.
+> The workflow **registers the app with App Check** but leaves enforcement off —
+> the console shows `Registered (Unenforced)`. Nothing is blocked in that state,
+> which is why the app works without an App Check provider. See step 5 before
+> turning enforcement on.
 
 Afterwards, re-download `google-services.json` and replace `app/google-services.json`.
 Check your browser did not save it as `google-services (1).json` beside the old
 one; that has already happened once.
 
-## 5. Register a debug token for the emulator
+## 5. App Check: not wired up
 
-Play Integrity cannot attest an emulator, so debug builds use a debug provider.
-The app already installs it automatically in debug builds — you only need to
-tell Firebase the token it prints.
+**The app does not install an App Check provider.** There is no `firebase-appcheck`
+dependency and no `FirebaseAppCheck.getInstance().installAppCheckProviderFactory(...)`
+call anywhere in `app/src`. This section says so plainly because an earlier draft
+claimed the opposite, and following those instructions produced a debug token
+that never appeared in logcat.
 
-1. Build and run the app once on the emulator, with `google-services.json` in place.
-2. Read the token out of logcat:
-   ```
-   adb logcat -d | grep -A2 DebugAppCheckProvider
-   ```
-   The line reads: "Enter this debug secret into the allow list in the Firebase
-   Console for your project: <token>".
-3. In the console go to **Security → App Check → Apps** tab (again, *not* under
-   "Build"), find `app.dewey`, open its overflow menu **⋮**, choose
-   **Manage debug tokens**, and add the token. Name it `emulator`.
+That is fine while enforcement is off. **If you turn enforcement on, every cloud
+answer will start failing** — the app has nothing to attest with. Turning it on
+means three changes first:
 
-The token grants quota to whoever holds it, so it is per-machine and must not be
-committed.
+1. Add `firebase-appcheck-playintegrity` and `firebase-appcheck-debug` to
+   `gradle/libs.versions.toml` and `app/build.gradle.kts`.
+2. Install the debug provider for debug builds and Play Integrity for release,
+   in `DeweyApplication.onCreate`, guarded by `BuildConfig.HAS_FIREBASE`.
+3. Run the app once, read the token out of logcat
+   (`adb logcat -d | grep -A2 DebugAppCheckProvider`), and register it under
+   **Security → App Check → Apps → ⋮ → Manage debug tokens**. That token grants
+   quota to whoever holds it, so it is per-machine and must never be committed.
+
+Play Integrity cannot attest an emulator at all, which is what the debug provider
+is for.
 
 ## 6. Confirm
 
