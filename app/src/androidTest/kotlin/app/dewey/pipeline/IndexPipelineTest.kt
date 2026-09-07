@@ -70,8 +70,8 @@ class IndexPipelineTest {
         repository = DocumentRepository(
             documentDao = database.documentDao(),
             chunkDao = database.chunkDao(),
-            pdfText = PdfTextExtractor(context.contentResolver),
-            ocrText = OcrTextExtractor(context.contentResolver),
+            pdfText = PdfTextExtractor(context.contentResolver, cacheDir = context.cacheDir),
+            ocrText = OcrTextExtractor(context.contentResolver, cacheDir = context.cacheDir),
             chunker = Chunker(),
             embedder = { embedder },
         )

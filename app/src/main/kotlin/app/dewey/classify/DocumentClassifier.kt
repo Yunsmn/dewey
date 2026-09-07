@@ -122,6 +122,15 @@ class DocumentClassifier(
          */
         const val MIN_MARGIN = 0.008f
 
-        private const val OPENING_CHARS = 1_600
+        /**
+         * How much of a document [classify] actually looks at.
+         *
+         * Public because it is a read budget as much as a tuning constant: a
+         * caller classifying a whole library should ask the database for this
+         * many characters per document rather than for every document's full
+         * text, which for four hundred scanned files is a heap the phone does
+         * not have. See DocumentDao.allIndexedOpenings.
+         */
+        const val OPENING_CHARS = 1_600
     }
 }

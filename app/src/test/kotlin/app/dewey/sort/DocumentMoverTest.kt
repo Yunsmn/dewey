@@ -55,4 +55,40 @@ class DocumentMoverTest {
     fun `a tree segment appearing later does not count`() {
         assertThat(DocumentMover.isTreeOnly(segments("document", "primary:tree"))).isFalse()
     }
+
+    @Test
+    fun `a copy the same size as its source may be trusted`() {
+        assertThat(DocumentMover.verifyCopy(sourceSize = 4_096, copySize = 4_096))
+            .isEqualTo(DocumentMover.CopyCheck.MATCHES)
+    }
+
+    @Test
+    fun `an empty file copied to an empty file is a good copy`() {
+        // Zero is a real size, not a missing one — the distinction that keeps
+        // this from being written as a null-or-zero check.
+        assertThat(DocumentMover.verifyCopy(sourceSize = 0, copySize = 0))
+            .isEqualTo(DocumentMover.CopyCheck.MATCHES)
+    }
+
+    @Test
+    fun `a short copy is not trusted`() {
+        assertThat(DocumentMover.verifyCopy(sourceSize = 4_096, copySize = 1_024))
+            .isEqualTo(DocumentMover.CopyCheck.DIFFERS)
+    }
+
+    @Test
+    fun `a copy that came back empty is not trusted`() {
+        assertThat(DocumentMover.verifyCopy(sourceSize = 4_096, copySize = 0))
+            .isEqualTo(DocumentMover.CopyCheck.DIFFERS)
+    }
+
+    @Test
+    fun `a provider that reports no size leaves the copy unverifiable`() {
+        assertThat(DocumentMover.verifyCopy(sourceSize = null, copySize = 4_096))
+            .isEqualTo(DocumentMover.CopyCheck.UNVERIFIABLE)
+        assertThat(DocumentMover.verifyCopy(sourceSize = 4_096, copySize = null))
+            .isEqualTo(DocumentMover.CopyCheck.UNVERIFIABLE)
+        assertThat(DocumentMover.verifyCopy(sourceSize = null, copySize = null))
+            .isEqualTo(DocumentMover.CopyCheck.UNVERIFIABLE)
+    }
 }

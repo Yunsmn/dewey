@@ -21,6 +21,9 @@ class DocumentMover(
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
+    /** What comparing a copy's size against its source's is able to tell us. */
+    enum class CopyCheck { MATCHES, DIFFERS, UNVERIFIABLE }
+
     sealed interface Outcome {
         data class Moved(val from: Uri, val to: Uri, val folder: String) : Outcome
         data class Skipped(val uri: Uri, val why: String) : Outcome
@@ -112,12 +115,38 @@ class DocumentMover(
         }
 
     private fun copyThenDelete(document: Uri, targetParent: Uri, folderName: String): Outcome {
+        // Read before the copy, not after: on a provider that streams, the source
+        // is the only thing we can be sure has not changed underneath us.
+        val sourceSize = sizeOf(document)
+
         val copy = try {
             DocumentsContract.copyDocument(resolver, document, asDocumentUri(targetParent))
         } catch (e: Exception) {
             Log.w(TAG, "Copy failed for $document", e)
             null
         } ?: return Outcome.Failed(document, "could not be copied into $folderName")
+
+        when (verifyCopy(sourceSize, sizeOf(copy))) {
+            CopyCheck.MATCHES -> Unit
+
+            CopyCheck.DIFFERS -> {
+                // A short copy is worse than no copy: it looks filed. Remove it
+                // and leave the original alone.
+                discard(copy)
+                return Outcome.Failed(document, "was copied into $folderName incompletely")
+            }
+
+            CopyCheck.UNVERIFIABLE -> {
+                // The provider does not report sizes, so there is no way to know
+                // the copy is whole. Keeping both files is recoverable; deleting
+                // the only good copy of someone's document is not.
+                Log.w(TAG, "Cannot verify copy of $document; keeping the original")
+                return Outcome.Skipped(
+                    copy,
+                    "copied into $folderName, but the original was kept because the copy could not be verified",
+                )
+            }
+        }
 
         val removed = try {
             DocumentsContract.deleteDocument(resolver, document)
@@ -134,6 +163,31 @@ class DocumentMover(
         } else {
             Outcome.Skipped(copy, "copied into $folderName but the original could not be removed")
         }
+    }
+
+    /** Best-effort removal of a copy we have decided not to keep. */
+    private fun discard(copy: Uri) {
+        try {
+            DocumentsContract.deleteDocument(resolver, copy)
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not remove the incomplete copy at $copy", e)
+        }
+    }
+
+    /**
+     * A document's size in bytes, or null when the provider does not say.
+     *
+     * A provider is allowed to leave COLUMN_SIZE null — it means "unknown", not
+     * "empty" — so null and 0 have to stay distinguishable here.
+     */
+    private fun sizeOf(uri: Uri): Long? = try {
+        resolver.query(uri, arrayOf(DocumentsContract.Document.COLUMN_SIZE), null, null, null)
+            ?.use { cursor ->
+                if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null
+            }
+    } catch (e: Exception) {
+        Log.w(TAG, "Could not read the size of $uri", e)
+        null
     }
 
     /** The child of [parent] with this display name, if it exists. */
@@ -202,5 +256,22 @@ class DocumentMover(
          */
         fun isTreeOnly(segments: List<String>): Boolean =
             segments.firstOrNull() == SEGMENT_TREE && !segments.contains(SEGMENT_DOCUMENT)
+
+        /**
+         * Whether a copy may be trusted enough to delete the original.
+         *
+         * Pure, and separate from the query that produces the two sizes, because
+         * the interesting cases are the ones a device test will not reliably
+         * produce: a provider that reports no size at all, and a copy that came
+         * back short. Both decide whether a document survives.
+         *
+         * Null means the provider did not report a size. Zero is a real answer —
+         * an empty file copied to an empty file is a good copy.
+         */
+        fun verifyCopy(sourceSize: Long?, copySize: Long?): CopyCheck = when {
+            sourceSize == null || copySize == null -> CopyCheck.UNVERIFIABLE
+            sourceSize == copySize -> CopyCheck.MATCHES
+            else -> CopyCheck.DIFFERS
+        }
     }
 }

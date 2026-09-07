@@ -10,8 +10,8 @@ import androidx.work.WorkerParameters
 import app.dewey.data.repository.DocumentRepository
 import app.dewey.data.storage.SafDocumentSource
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlin.coroutines.coroutineContext
 
 /**
  * Imports and indexes every PDF under a granted folder.
@@ -62,7 +62,12 @@ class IndexWorker(
         var failed = 0
 
         documents.forEachIndexed { position, document ->
-            coroutineContext.ensureActive()
+            // currentCoroutineContext(), not the bare `coroutineContext`: inside a
+            // CoroutineWorker that name resolves to the worker's own deprecated
+            // dispatcher property, which shadows kotlin.coroutines.coroutineContext.
+            // A dispatcher carries no Job, so ensureActive() on it silently does
+            // nothing and the loop runs to the end after being cancelled.
+            currentCoroutineContext().ensureActive()
             publish(position, documents.size, document.displayName)
 
             val outcome = runCatching { repository.importAndIndex(document) }

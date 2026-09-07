@@ -12,9 +12,11 @@ import kotlin.math.ln
  * one. BM25 has the opposite bias, and fusing the two measured 68% to 81%
  * recall@1 in tools/eval/retrieval_bench.py.
  *
- * Built per query rather than persisted. The chunks are already in memory for
- * the dense pass, and a few thousand of them tokenise in a few milliseconds —
- * far less than the work an FTS table would add to every insert.
+ * Built in memory from the chunks already loaded for the dense pass, rather
+ * than persisted — an FTS table would add work to every insert to save work
+ * this does in a few milliseconds. It is held across queries by
+ * [LexicalIndexCache] so a corpus that has not changed is tokenised once
+ * rather than once per question.
  */
 class Bm25(documents: List<String>) {
 

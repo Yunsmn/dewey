@@ -5,15 +5,21 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import android.util.Log
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -31,6 +37,12 @@ class OcrTextExtractor(
     private val resolver: ContentResolver,
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val maxPages: Int = MAX_PAGES,
+    /**
+     * Where a non-seekable document may be copied so it can be rendered. Null
+     * disables that fallback, which only costs those documents their OCR.
+     */
+    private val cacheDir: File? = null,
+    private val maxSpoolBytes: Long = MAX_SPOOL_BYTES,
 ) {
 
     private val recognizer by lazy {
@@ -39,24 +51,13 @@ class OcrTextExtractor(
 
     suspend fun extract(uri: Uri): String? = withContext(io) {
         try {
-            resolver.openFileDescriptor(uri, "r").use { descriptor ->
-                if (descriptor == null) return@withContext null
-                PdfRenderer(descriptor).use { renderer ->
-                    val pages = minOf(renderer.pageCount, maxPages)
-                    val builder = StringBuilder()
-
-                    for (index in 0 until pages) {
-                        coroutineContext.ensureActive()
-                        val bitmap = renderPage(renderer, index) ?: continue
-                        try {
-                            builder.append(recognise(bitmap)).append('\n')
-                        } finally {
-                            bitmap.recycle()
-                        }
-                    }
-                    builder.toString().takeIf { it.isNotBlank() }
-                }
-            }
+            val text = readInPlace(uri) ?: readFromCopy(uri)
+            text?.takeIf { it.isNotBlank() }
+        } catch (e: CancellationException) {
+            // Cancellation is the caller changing its mind, not a failure of
+            // this document. Reporting it as "no text" would let the indexer
+            // record an empty result and never try again.
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "OCR failed for $uri", e)
             null
@@ -64,6 +65,84 @@ class OcrTextExtractor(
             Log.w(TAG, "Ran out of memory during OCR of $uri")
             null
         }
+    }
+
+    /**
+     * Renders straight off the provider's descriptor.
+     *
+     * Null means the descriptor could not be rendered at all, which is the
+     * signal to try a copy. A document that rendered but held no recognisable
+     * text comes back as an empty string, so it is not copied and re-read for
+     * nothing.
+     */
+    private suspend fun readInPlace(uri: Uri): String? {
+        val descriptor = resolver.openFileDescriptor(uri, "r") ?: return null
+        descriptor.use {
+            val renderer = try {
+                PdfRenderer(it)
+            } catch (e: IOException) {
+                // PdfRenderer has to seek. A provider that streams its content —
+                // a cloud one, typically, or anything backed by a pipe — hands
+                // back a descriptor that cannot, and this is where that shows up.
+                Log.i(TAG, "Cannot render $uri in place (${e.message}); will copy it")
+                return null
+            } catch (e: SecurityException) {
+                // Password-protected. Copying it would not help.
+                Log.i(TAG, "$uri is protected; skipping OCR")
+                return ""
+            }
+            return renderer.use { open -> readPages(open) }
+        }
+    }
+
+    /**
+     * Copies the document into the cache and renders that instead.
+     *
+     * A local file can seek, which is the whole point. The copy is deleted
+     * before this returns, whatever happens.
+     */
+    private suspend fun readFromCopy(uri: Uri): String? {
+        val cache = cacheDir ?: return null
+        val spool = File.createTempFile("ocr", ".pdf", cache)
+        try {
+            val copied = resolver.openInputStream(uri)?.use { input ->
+                spool.outputStream().use { output -> copyBounded(input, output, maxSpoolBytes) }
+            } ?: return null
+
+            if (!copied) {
+                Log.i(TAG, "$uri is larger than the ${maxSpoolBytes / 1_000_000}MB OCR copy limit")
+                return null
+            }
+
+            ParcelFileDescriptor.open(spool, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
+                PdfRenderer(descriptor).use { renderer -> return readPages(renderer) }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not render the cached copy of $uri", e)
+            return null
+        } finally {
+            // Not deleteOnExit: a phone process is killed, it does not exit, and
+            // a cache full of abandoned PDF copies is the user's storage.
+            if (!spool.delete()) Log.w(TAG, "Could not delete the OCR copy at $spool")
+        }
+    }
+
+    private suspend fun readPages(renderer: PdfRenderer): String {
+        val pages = minOf(renderer.pageCount, maxPages)
+        val builder = StringBuilder()
+
+        for (index in 0 until pages) {
+            coroutineContext.ensureActive()
+            val bitmap = renderPage(renderer, index) ?: continue
+            try {
+                builder.append(recognise(bitmap)).append('\n')
+            } finally {
+                bitmap.recycle()
+            }
+        }
+        return builder.toString()
     }
 
     private fun renderPage(renderer: PdfRenderer, index: Int): Bitmap? =
@@ -95,9 +174,38 @@ class OcrTextExtractor(
                 .addOnFailureListener { continuation.resumeWithException(it) }
         }
 
-    private companion object {
-        const val TAG = "OcrTextExtractor"
-        const val MAX_PAGES = 10
-        const val TARGET_LONG_EDGE = 2000
+    companion object {
+        private const val TAG = "OcrTextExtractor"
+        private const val MAX_PAGES = 10
+        private const val TARGET_LONG_EDGE = 2000
+
+        /**
+         * The copy fallback writes to the app's cache, so it is bounded. 40MB is
+         * generous for a scan of the first few pages' worth of anything the
+         * indexer will actually read, and small enough not to matter on a phone
+         * whose storage is already tight.
+         */
+        const val MAX_SPOOL_BYTES = 40L * 1024 * 1024
+
+        /**
+         * Copies at most [limit] bytes, returning false if the source held more.
+         *
+         * Pure enough to test on the JVM, which is the point: the interesting
+         * case is the one a device test will not produce on demand, a document
+         * bigger than the cache should hold. A file exactly at the limit is
+         * copied — the limit is what fits, not what is too much.
+         */
+        fun copyBounded(input: InputStream, output: OutputStream, limit: Long): Boolean {
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var written = 0L
+
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) return true
+                written += read
+                if (written > limit) return false
+                output.write(buffer, 0, read)
+            }
+        }
     }
 }

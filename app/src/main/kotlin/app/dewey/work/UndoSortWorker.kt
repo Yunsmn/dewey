@@ -11,8 +11,8 @@ import app.dewey.data.db.DocumentDao
 import app.dewey.sort.DocumentMover
 import app.dewey.sort.UndoLog
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlin.coroutines.coroutineContext
 
 /**
  * Puts everything the last sort moved back where it came from.
@@ -45,7 +45,9 @@ class UndoSortWorker(
             val moves = batch.moves.reversed()
 
             moves.forEachIndexed { position, move ->
-                coroutineContext.ensureActive()
+                // currentCoroutineContext() rather than the bare name — see IndexWorker
+                // for why a CoroutineWorker's own `coroutineContext` cannot cancel.
+                currentCoroutineContext().ensureActive()
                 publish(position, moves.size, move.displayName)
 
                 val outcome = mover.move(

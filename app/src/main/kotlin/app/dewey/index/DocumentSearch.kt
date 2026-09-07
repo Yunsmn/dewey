@@ -25,6 +25,8 @@ class DocumentSearch(
     private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
 
+    private val lexicalIndexCache = LexicalIndexCache()
+
     data class Hit(
         val documentId: Long,
         val chunkId: Long,
@@ -55,7 +57,16 @@ class DocumentSearch(
 
         val denseRanking = dense.sortedByDescending { it.value }.take(CANDIDATES).map { it.index }
 
-        val lexical = Bm25(rows.map { it.text }).scores(queryText)
+        // Reused across queries when nothing has been indexed since the last
+        // one — see LexicalIndexCache for why those two numbers identify the
+        // corpus.
+        val bm25 = lexicalIndexCache.index(
+            count = rows.size,
+            newestId = rows.maxOf { it.id },
+            texts = { rows.map { it.text } },
+        )
+
+        val lexical = bm25.scores(queryText)
         val lexicalRanking = lexical.withIndex()
             .filter { it.value > 0.0 }
             .sortedByDescending { it.value }

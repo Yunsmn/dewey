@@ -16,9 +16,9 @@ import app.dewey.domain.model.DocType
 import app.dewey.sort.DocumentMover
 import app.dewey.sort.UndoLog
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import java.util.UUID
-import kotlin.coroutines.coroutineContext
 
 /**
  * Reads every document in a folder, works out what each one is, and files it.
@@ -68,7 +68,14 @@ class SortWorker(
         // Indexed text is keyed by URI: sorting classifies from text that was
         // already extracted at import rather than re-reading every PDF, which is
         // the difference between a minute and twenty.
-        val textByUri = documentDao.allIndexed().associateBy { it.uri }
+        //
+        // Only the opening of each document is read. The classifier looks at no
+        // more than that, and pulling every document's full text into one map
+        // is how a four-hundred-file sort runs out of heap — see
+        // DocumentDao.allIndexedOpenings.
+        val openingByUri = documentDao
+            .allIndexedOpenings(DocumentClassifier.OPENING_CHARS)
+            .associateBy { it.uri }
 
         // findPdfs() walks subfolders, so a second sort re-enumerates everything
         // an earlier run already filed into Bills, Bank, and so on. Recognising
@@ -93,7 +100,9 @@ class SortWorker(
         var failed = 0
 
         documents.forEachIndexed { position, document ->
-            coroutineContext.ensureActive()
+            // currentCoroutineContext() rather than the bare name — see IndexWorker
+            // for why a CoroutineWorker's own `coroutineContext` cannot cancel.
+            currentCoroutineContext().ensureActive()
             publish(position, documents.size, document.displayName)
 
             if (document.isAlreadyFiled(alreadyFiledFolderIds)) {
@@ -102,8 +111,8 @@ class SortWorker(
                 return@forEachIndexed
             }
 
-            val row = textByUri[document.uri.toString()]
-            if (row?.text.isNullOrBlank()) {
+            val row = openingByUri[document.uri.toString()]
+            if (row?.opening.isNullOrBlank()) {
                 // Never indexed, or nothing readable in it. Not a failure — it
                 // simply cannot be classified, so it stays put.
                 markForReview(row?.id, DocumentClassifier.Verdict.Reason.NO_TEXT.name, null)
@@ -111,7 +120,7 @@ class SortWorker(
                 return@forEachIndexed
             }
 
-            when (val verdict = classifier.classify(row!!.text!!)) {
+            when (val verdict = classifier.classify(row.opening)) {
                 is DocumentClassifier.Verdict.Unsure -> {
                     markForReview(row.id, verdict.reason.name, verdict.margin)
                     review++

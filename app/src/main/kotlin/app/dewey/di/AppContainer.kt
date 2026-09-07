@@ -61,8 +61,12 @@ class AppContainer(private val context: Context) {
         DocumentRepository(
             documentDao = database.documentDao(),
             chunkDao = database.chunkDao(),
-            pdfText = PdfTextExtractor(context.contentResolver),
-            ocrText = OcrTextExtractor(context.contentResolver),
+            // cacheDir is passed because PDFBox spills parsed state to a temp
+            // file; the JVM default temp dir is not reliably writable on Android.
+            pdfText = PdfTextExtractor(context.contentResolver, cacheDir = context.cacheDir),
+            // Same cacheDir: a provider that streams hands back a descriptor
+            // PdfRenderer cannot seek, and the fallback copies the file locally.
+            ocrText = OcrTextExtractor(context.contentResolver, cacheDir = context.cacheDir),
             chunker = Chunker(),
             embedder = { embedder },
         )
