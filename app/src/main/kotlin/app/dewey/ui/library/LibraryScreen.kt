@@ -108,8 +108,9 @@ private fun LibraryContent(
 
             item(key = "task") {
                 // Indexing and sorting never run together, so one banner slot
-                // shows whichever is live rather than stacking two.
-                val live = if (state.task !is TaskState.Idle) state.task else state.sortTask
+                // shows whichever is live rather than stacking two. Which one
+                // that is is decided in bannerTask, next to its reasoning.
+                val live = state.banner
                 AnimatedVisibility(visible = live !is TaskState.Idle) {
                     Column {
                         TaskBanner(state = live, onCancel = onCancelIndexing)

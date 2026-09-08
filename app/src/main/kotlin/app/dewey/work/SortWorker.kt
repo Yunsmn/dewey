@@ -81,7 +81,7 @@ class SortWorker(
         // an earlier run already filed into Bills, Bank, and so on. Recognising
         // those by their parent folder — rather than by re-classifying them —
         // is what makes a rerun a no-op instead of a wall of false reviews.
-        val alreadyFiledFolderIds = alreadyFiledFolderIds(source.topLevelFolders(treeUri))
+        val alreadyFiledFolders = alreadyFiledFolders(source.topLevelFolders(treeUri))
 
         // Deliberately not started here.
         //
@@ -99,19 +99,33 @@ class SortWorker(
         var review = 0
         var failed = 0
 
+        // Documents an earlier run (or the user) had already filed. Counted
+        // apart from `moved` because nothing moved — but not silently, because
+        // a rerun that recognises ninety-six documents has done something.
+        var recognised = 0
+
         documents.forEachIndexed { position, document ->
             // currentCoroutineContext() rather than the bare name — see IndexWorker
             // for why a CoroutineWorker's own `coroutineContext` cannot cancel.
             currentCoroutineContext().ensureActive()
             publish(position, documents.size, document.displayName)
 
-            if (document.isAlreadyFiled(alreadyFiledFolderIds)) {
-                // Already sorted by an earlier run. Not moved, not a review —
-                // simply not this run's business.
+            val row = openingByUri[document.uri.toString()]
+
+            document.filedUnder(alreadyFiledFolders)?.let { type ->
+                // Already sitting in one of our folders, so there is nothing to
+                // move. There is still something to record: the folder says what
+                // the document is, and without writing that down the library
+                // shows it as "Unsorted" for ever. That is what a reinstall over
+                // an already-sorted folder used to look like — every file back
+                // under Unsorted, with the sort insisting it had nothing to do.
+                if (row != null) {
+                    documentDao.recordFiledInPlace(row.id, type.name, type.folderName())
+                    recognised++
+                }
                 return@forEachIndexed
             }
 
-            val row = openingByUri[document.uri.toString()]
             if (row?.opening.isNullOrBlank()) {
                 // Never indexed, or nothing readable in it. Not a failure — it
                 // simply cannot be classified, so it stays put.
@@ -170,7 +184,7 @@ class SortWorker(
         }
 
         publish(documents.size, documents.size, null)
-        return Result.success(summary(moved, review, usedFolders.size, failed))
+        return Result.success(summary(moved, review, usedFolders.size, failed, recognised))
     }
 
     private suspend fun markForReview(id: Long?, reason: String, margin: Float?) {
@@ -191,11 +205,12 @@ class SortWorker(
         }
     }
 
-    private fun summary(moved: Int, review: Int, folders: Int, failed: Int): Data =
+    private fun summary(moved: Int, review: Int, folders: Int, failed: Int, recognised: Int = 0): Data =
         Data.Builder()
             .putInt(KEY_MOVED, moved)
             .putInt(KEY_REVIEW, review)
             .putInt(KEY_FOLDERS, folders)
+            .putInt(KEY_RECOGNISED, recognised)
             .putInt(IndexWorker.KEY_FAILED, failed)
             .build()
 
@@ -206,6 +221,7 @@ class SortWorker(
         const val KEY_MOVED = "moved"
         const val KEY_REVIEW = "review"
         const val KEY_FOLDERS = "folders"
+        const val KEY_RECOGNISED = "recognised"
         const val KEY_ERROR = "error"
 
         /** Folder names as a person would write them, not enum constants. */
@@ -225,31 +241,49 @@ class SortWorker(
             DocType.UNKNOWN -> "Unsorted"
         }
 
-        /** Every folder name [folderName] can produce, for spotting an already-filed document. */
-        val CATEGORY_FOLDER_NAMES: Set<String> = DocType.entries.map { it.folderName() }.toSet()
+
+        /**
+         * The type a folder of this name stands for, or null if it is not one
+         * of ours.
+         *
+         * [DocType.UNKNOWN] is excluded deliberately. Its folder is "Unsorted",
+         * and a document in there is precisely one nothing is known about —
+         * treating that as an answer would mark it filed and stop the next sort
+         * ever looking at it again.
+         */
+        fun typeForFolderName(name: String): DocType? =
+            DocType.entries.firstOrNull { it != DocType.UNKNOWN && it.folderName() == name }
     }
 }
 
 /**
- * The document ids of [topLevelFolders] that are one of the app's own category folders.
+ * The app's own category folders among [topLevelFolders], by document id, each
+ * mapped to the type its name stands for.
  *
- * Kept apart from [SortWorker] so the rule that makes a second sort a no-op —
- * "a document already sitting in Bills is not this run's business" — is a
- * plain function over data, testable without a CoroutineWorker.
+ * A map rather than a set of ids, because the folder a document sits in is an
+ * answer and not just a flag. A file inside "Bills" is a bill — that is what
+ * putting it there meant, whether this app did it on an earlier run or the
+ * person did it by hand — and skipping it without recording that throws the
+ * answer away. See [SortWorker.sort].
+ *
+ * Kept apart from [SortWorker] so the rule that makes a second sort a no-op is
+ * a plain function over data, testable without a CoroutineWorker.
  */
-internal fun alreadyFiledFolderIds(topLevelFolders: List<SafDocument>): Set<String> =
-    topLevelFolders.filter { it.displayName in SortWorker.CATEGORY_FOLDER_NAMES }
-        .mapTo(HashSet()) { it.documentId }
+internal fun alreadyFiledFolders(topLevelFolders: List<SafDocument>): Map<String, DocType> =
+    topLevelFolders.mapNotNull { folder ->
+        SortWorker.typeForFolderName(folder.displayName)?.let { folder.documentId to it }
+    }.toMap()
 
 /**
- * Whether this document already sits directly inside one of [folderIds].
+ * The category of the folder this document sits directly inside, or null if it
+ * is not in one of ours.
  *
  * Compared by document id rather than by [SafDocument.parentUri]: the id is a
  * plain string the provider assigned, while two URIs naming the same folder
  * are not guaranteed to compare equal byte-for-byte across providers.
  */
-internal fun SafDocument.isAlreadyFiled(folderIds: Set<String>): Boolean =
-    parentDocumentId in folderIds
+internal fun SafDocument.filedUnder(folders: Map<String, DocType>): DocType? =
+    folders[parentDocumentId]
 
 /**
  * The undo entry for a document [SortWorker] just moved.

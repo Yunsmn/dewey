@@ -30,6 +30,8 @@ data class LibraryUiState(
     val grantedFolders: Int = 0,
     val task: TaskState = TaskState.Idle,
     val sortTask: TaskState = TaskState.Idle,
+    /** The one of the two the banner shows — see [bannerTask]. */
+    val banner: TaskState = TaskState.Idle,
     /** Documents the classifier declined to file. Ordered least confident first. */
     val needsReview: List<Document> = emptyList(),
     /** True while the last sort can still be put back. */
@@ -61,6 +63,12 @@ class LibraryViewModel(
 
     private val undoAvailable = MutableStateFlow(false)
 
+    /**
+     * Which task settled most recently, so the one banner shows the newer news.
+     * Null until something finishes while this screen is alive — see [bannerTask].
+     */
+    private val lastSettled = MutableStateFlow<BannerSource?>(null)
+
     val state: StateFlow<LibraryUiState> = combine(
         repository.observeDocuments(),
         repository.observeNeedingReview(),
@@ -74,6 +82,9 @@ class LibraryViewModel(
         val reviewIds = review.mapTo(HashSet()) { it.id }
         val filed = documents.filterNot { it.id in reviewIds }
 
+        recordSettled(BannerSource.INDEX, indexTask)
+        recordSettled(BannerSource.SORT, sortTask)
+
         LibraryUiState(
             sections = filed.groupBy(Document::docType)
                 .map { (type, docs) -> LibrarySection(type, docs) }
@@ -82,6 +93,7 @@ class LibraryViewModel(
             grantedFolders = trees.size,
             task = indexTask,
             sortTask = sortTask,
+            banner = bannerTask(indexTask, sortTask, lastSettled.value),
             needsReview = review,
             canUndo = undo,
         )
@@ -92,6 +104,22 @@ class LibraryViewModel(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = LibraryUiState(),
     )
+
+    /**
+     * Notes that [state] has finished, if this is the emission where it did.
+     *
+     * Compared against what was seen last rather than set unconditionally: the
+     * flow re-emits whenever the document list changes, and a settled task that
+     * simply came round again is not news.
+     */
+    private fun recordSettled(source: BannerSource, state: TaskState) {
+        if (!state.isTerminal) return
+        if (seenSettled[source] == state) return
+        seenSettled[source] = state
+        lastSettled.value = source
+    }
+
+    private val seenSettled = HashMap<BannerSource, TaskState>()
 
     fun onFolderGranted(treeUri: Uri) {
         viewModelScope.launch {

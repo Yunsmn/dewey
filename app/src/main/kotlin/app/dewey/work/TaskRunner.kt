@@ -103,6 +103,7 @@ internal fun WorkInfo?.toTaskState(task: DeweyTask): TaskState = when (this?.sta
             moved = outputData.getInt(SortWorker.KEY_MOVED, 0),
             review = outputData.getInt(SortWorker.KEY_REVIEW, 0),
             folders = outputData.getInt(SortWorker.KEY_FOLDERS, 0),
+            recognised = outputData.getInt(SortWorker.KEY_RECOGNISED, 0),
             failed = outputData.getInt(IndexWorker.KEY_FAILED, 0),
         )
         DeweyTask.UNDO -> TaskState.Restored(

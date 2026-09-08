@@ -2,6 +2,8 @@ package app.dewey.work
 
 import android.net.Uri
 import app.dewey.data.storage.SafDocument
+import app.dewey.domain.model.DocType
+import app.dewey.work.SortWorker.Companion.folderName
 import app.dewey.sort.DocumentMover
 import com.google.common.truth.Truth.assertThat
 import io.mockk.every
@@ -64,35 +66,62 @@ class SortWorkerTest {
             folder("f3", "Bank"),
         )
 
-        assertThat(alreadyFiledFolderIds(folders)).containsExactly("f1", "f3")
+        assertThat(alreadyFiledFolders(folders))
+            .containsExactly("f1", DocType.UTILITY_BILL, "f3", DocType.BANK_STATEMENT)
     }
 
     @Test
     fun `no category folders yet means nothing is already filed`() {
-        assertThat(alreadyFiledFolderIds(emptyList())).isEmpty()
+        assertThat(alreadyFiledFolders(emptyList())).isEmpty()
     }
 
     @Test
-    fun `a document sitting directly inside a category folder is already filed`() {
+    fun `the Unsorted folder is not a category`() {
+        // Its whole meaning is "nothing is known about this". Treating it as an
+        // answer would mark those documents filed and stop the next sort ever
+        // looking at them again.
+        assertThat(SortWorker.typeForFolderName("Unsorted")).isNull()
+        assertThat(alreadyFiledFolders(listOf(folder("f1", "Unsorted")))).isEmpty()
+    }
+
+    @Test
+    fun `every category folder name maps back to the type that produced it`() {
+        // folderName() and typeForFolderName() are inverses, or a document
+        // filed under one name comes back as a different kind of thing.
+        val roundTripped = DocType.entries
+            .filter { it != DocType.UNKNOWN }
+            .associateWith { SortWorker.typeForFolderName(it.folderName()) }
+
+        assertThat(roundTripped).containsExactlyEntriesIn(
+            DocType.entries.filter { it != DocType.UNKNOWN }.associateWith { it }
+        )
+    }
+
+    @Test
+    fun `a document sitting directly inside a category folder is filed under that folder's type`() {
         val billsId = "bills-folder-id"
         val documentInBills = document(parentDocumentId = billsId)
 
-        assertThat(documentInBills.isAlreadyFiled(setOf(billsId))).isTrue()
+        assertThat(documentInBills.filedUnder(mapOf(billsId to DocType.UTILITY_BILL)))
+            .isEqualTo(DocType.UTILITY_BILL)
     }
 
     @Test
     fun `a document still at the tree root is not already filed`() {
         val documentAtRoot = document(parentDocumentId = "root")
 
-        assertThat(documentAtRoot.isAlreadyFiled(setOf("bills-folder-id"))).isFalse()
+        assertThat(documentAtRoot.filedUnder(mapOf("bills-folder-id" to DocType.UTILITY_BILL)))
+            .isNull()
     }
 
     @Test
-    fun `a second sort over an already-sorted layout finds nothing left to do`() {
-        // The end-to-end shape of defect #2: findPdfs() walks into Bills and
-        // Bank on a rerun, and every one of those documents must be recognised
-        // as already filed rather than counted toward review.
-        val categoryFolderIds = alreadyFiledFolderIds(
+    fun `a second sort over an already-sorted layout recognises what each document is`() {
+        // findPdfs() walks into Bills and Bank on a rerun. Those documents must
+        // not be counted toward review — and, the part that was missing, the
+        // folder each one sits in has to be read back as its type. Without that
+        // a reinstall over a sorted folder leaves every file under "Unsorted",
+        // because the database was wiped while the folders on disk were not.
+        val categories = alreadyFiledFolders(
             listOf(folder("bills-id", "Bills"), folder("bank-id", "Bank")),
         )
         val secondPassDocuments = listOf(
@@ -100,7 +129,9 @@ class SortWorkerTest {
             document(documentId = "2", parentDocumentId = "bank-id"),
         )
 
-        assertThat(secondPassDocuments.all { it.isAlreadyFiled(categoryFolderIds) }).isTrue()
+        assertThat(secondPassDocuments.map { it.filedUnder(categories) })
+            .containsExactly(DocType.UTILITY_BILL, DocType.BANK_STATEMENT)
+            .inOrder()
     }
 
     @Test

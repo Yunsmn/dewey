@@ -101,6 +101,17 @@ interface DocumentDao {
 
     @Query("UPDATE documents SET uri = :uri, sorted_folder = :folder WHERE id = :id")
     suspend fun recordMove(id: Long, uri: String, folder: String?)
+
+    /**
+     * A document already sitting in one of the app's category folders.
+     *
+     * Separate from [recordMove] because nothing moved: only what we know about
+     * the document changed. The URI is deliberately not touched — it is already
+     * right — and review_reason is cleared, because a document whose folder
+     * names its category is not waiting on anybody.
+     */
+    @Query("UPDATE documents SET doc_type = :docType, sorted_folder = :folder, review_reason = NULL WHERE id = :id")
+    suspend fun recordFiledInPlace(id: Long, docType: String, folder: String)
 }
 
 @Dao

@@ -48,7 +48,14 @@ sealed interface TaskState {
      * folders looked up but never used — because that is the number the banner
      * puts in front of the user.
      */
-    data class Sorted(val moved: Int, val review: Int, val folders: Int, val failed: Int) : TaskState
+    data class Sorted(
+        val moved: Int,
+        val review: Int,
+        val folders: Int,
+        val failed: Int,
+        /** Already in one of our folders, so recognised rather than moved. */
+        val recognised: Int = 0,
+    ) : TaskState
 
     data class Restored(val restored: Int, val failed: Int) : TaskState
 

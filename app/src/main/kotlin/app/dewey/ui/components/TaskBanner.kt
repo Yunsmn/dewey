@@ -122,11 +122,18 @@ fun TaskBanner(
  * rather than reusing the indexing banner's "shelved" language, which does
  * not fit a job that also leaves some documents where they were.
  */
-private fun sortedMessage(state: TaskState.Sorted): String {
-    val filed = if (state.moved == 0) {
-        "Nothing new to file."
-    } else {
-        "Filed ${state.moved.withNoun("document")} into ${state.folders.withNoun("folder")}."
+internal fun sortedMessage(state: TaskState.Sorted): String {
+    val filed = when {
+        state.moved > 0 ->
+            "Filed ${state.moved.withNoun("document")} into ${state.folders.withNoun("folder")}."
+
+        // "Nothing new to file" is true but reads like nothing happened, which
+        // is wrong when a run has just recognised a folder full of documents
+        // somebody else — or an earlier run — had already filed.
+        state.recognised > 0 ->
+            "Nothing new to file; ${state.recognised.withNoun("document")} already filed."
+
+        else -> "Nothing new to file."
     }
     val review = when {
         state.review <= 0 -> null
