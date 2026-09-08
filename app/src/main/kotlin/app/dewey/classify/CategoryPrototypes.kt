@@ -50,6 +50,20 @@ object CategoryPrototypes {
             "تقرير طبي، استشارة، تشخيص، وصفة طبية، عيادة",
             "Medical report from a clinic with a consultation, diagnosis and prescription",
         ),
+        /**
+         * Deliberately separate from [DocType.UNIVERSITY], which describes a
+         * student's own paperwork — transcripts, enrolment certificates. A
+         * downloaded paper and a record of your degree are different in kind:
+         * one is something you read, the other something you keep. Widening
+         * University to swallow both would make both folders worse.
+         */
+        DocType.PAPER to listOf(
+            "Research paper with an abstract, introduction, method, experiments, results and a list of references",
+            "Article de recherche scientifique avec resume, introduction, methode, resultats et bibliographie",
+            "ورقة بحثية أكاديمية، ملخص، مقدمة، منهجية البحث، النتائج، لائحة المراجع",
+            "Preprint describing a model architecture, its training procedure and benchmark evaluation",
+            "Technical specification or standards document defining a protocol, in numbered sections with normative requirements",
+        ),
         DocType.UNIVERSITY to listOf(
             "Releve de notes universitaire, attestation de scolarite, semestre, credits, moyenne",
             "University transcript or enrollment certificate with courses, grades and credits",

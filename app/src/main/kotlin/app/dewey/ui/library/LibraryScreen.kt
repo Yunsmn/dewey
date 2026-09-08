@@ -304,6 +304,7 @@ private fun DocType.readable(): String = when (this) {
     DocType.WARRANTY -> "Warranties"
     DocType.ADMIN -> "Admin"
     DocType.TRAVEL -> "Travel"
+    DocType.PAPER -> "Papers"
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFFFAF7F2, heightDp = 780, widthDp = 390)

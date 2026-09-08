@@ -67,4 +67,5 @@ enum class DocType {
     WARRANTY,
     ADMIN,
     TRAVEL,
+    PAPER,
 }

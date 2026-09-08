@@ -105,12 +105,20 @@ class DocumentClassifier(
         /**
          * Below this, the document is not any of the categories.
          *
-         * Measured: corpus documents score at least 0.821 against their own
-         * category, while research papers, RFCs and scanned books top out at
-         * 0.792. The gap is clean, and this sits inside it. Erring high is
-         * deliberate — a document sent for review is a mild annoyance, while one
+         * Chosen when research papers were out of scope: they topped out at
+         * 0.792 against every category while corpus documents scored at least
+         * 0.821 against their own, and this sat in the clean gap between.
+         *
+         * [DocType.PAPER] has since closed that gap on purpose — the same
+         * papers now score up to 0.837, because recognising them is the point.
+         * The floor is kept where it is regardless. Erring high is the whole
+         * argument: a document sent for review is a mild annoyance, while one
          * confidently filed in the wrong folder costs the user's trust in the
-         * whole feature.
+         * feature. Measured today it sends two of sixteen real papers to review
+         * — right about what they are, not quite sure enough to act.
+         *
+         * tools/eval/ood_check.py prints those numbers, and its header explains
+         * what it can and can no longer tell you.
          */
         const val MIN_SIMILARITY = 0.80f
 

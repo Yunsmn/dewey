@@ -1,14 +1,31 @@
 """
-What does the classifier do with a document that is none of its categories?
+What does the classifier do with documents the generated corpus never contains?
 
-The generated corpus only contains documents that belong somewhere, so a perfect
-score on it says nothing about the case that actually fills a review queue: a
-research paper, a manual, an RFC — something a person downloaded that is not a
-bill, a contract or a receipt.
+The generated corpus only holds documents that belong somewhere, so a perfect
+score on it says nothing about what a real Downloads folder does to the sort.
+tools/corpus/real holds the awkward cases: papers pulled off arXiv, an RFC, a
+scanned book.
 
-If those come back with a low margin, the review queue is doing real work. If
-they come back confident and wrong, the sort silently files a physics paper under
-"Insurance" and the user loses trust in one screen.
+**Read the verdict carefully — what this measures changed.** Papers were once
+out-of-distribution, and the check was whether a similarity floor could hold
+them out: it could, cleanly, papers topping out at 0.792 against a corpus
+bottoming out at 0.821. Then `paper` became a category of its own, and those
+same documents became things the classifier is *supposed* to recognise. A
+prediction of `paper` here is now a hit, not a miss, and the two populations
+overlapping on similarity is the expected consequence rather than a regression.
+
+So the number to watch is the label, per document, printed below:
+
+  - `paper` — correct. The category is doing its job.
+  - anything else — a real misfile, and the thing this file exists to catch.
+    A physics paper confidently filed under "Insurance" costs the user their
+    trust in the whole feature.
+
+What is *not* measured any more is genuine out-of-distribution behaviour. The
+only document here that still belongs to nothing is the scanned 1918 government
+report, and it has no text layer, so pypdf drops it before it reaches the
+classifier at all. Judging "does the app know when to say I don't know" needs a
+new sample of documents that belong to none of the categories.
 """
 
 import argparse
@@ -77,20 +94,37 @@ def main() -> None:
     print(f'  top similarity: mean {np.mean([r[1] for r in inside]):.4f}')
     print(f'  margin:         mean {np.mean([r[2] for r in inside]):.4f}')
 
-    print('\nOUT-OF-DISTRIBUTION (real papers, RFCs, scans)')
+    print('\nREAL DOWNLOADS (papers, RFCs, scans)')
     print(f'  top similarity: mean {np.mean([r[1] for r in outside]):.4f}')
     print(f'  margin:         mean {np.mean([r[2] for r in outside]):.4f}')
     for name, (label, top, margin) in zip(out_names, outside):
         print(f'    {name:42s} -> {label:16s} sim={top:.4f} margin={margin:.4f}')
 
-    # Can a single similarity threshold separate them? That is what decides
-    # whether "I don't know" is expressible at all.
+    # The headline: how many of these landed on the label they should have.
+    # Everything in tools/corpus/real is a paper, an RFC or a scanned book, and
+    # the first two are what the `paper` category was added for.
+    recognised = sum(1 for label, _, _ in outside if label == 'paper')
+    misfiled = [(name, label) for name, (label, _, _) in zip(out_names, outside)
+                if label != 'paper']
+    print(f'\nrecognised as papers: {recognised}/{len(outside)}')
+    for name, label in misfiled:
+        print(f'  MISFILED {name} -> {label}')
+
+    # Above this the sort acts; below it the document goes to review. Being
+    # right but unsure is a mild annoyance, so it is reported rather than
+    # treated as a failure.
+    floor = 0.80
+    unsure = [(name, top) for name, (_, top, _) in zip(out_names, outside) if top < floor]
+    print(f'confident enough to file (sim >= {floor}): {len(outside) - len(unsure)}/{len(outside)}')
+    for name, top in unsure:
+        print(f'  to review {name} sim={top:.4f}')
+
     in_top = np.array([r[1] for r in inside])
     out_top = np.array([r[1] for r in outside])
-    print(f'\nin-distribution  similarity: min {in_top.min():.4f}')
-    print(f'out-of-distribution similarity: max {out_top.max():.4f}')
-    print('separable by similarity alone' if out_top.max() < in_top.min()
-          else 'OVERLAP — a similarity floor alone cannot separate them')
+    print(f'\ncorpus similarity:  min {in_top.min():.4f}')
+    print(f'real similarity:    max {out_top.max():.4f}')
+    print('These overlap by design now that papers have a category — see the '
+          'note at the top of this file.')
 
 
 if __name__ == '__main__':

@@ -52,6 +52,15 @@ PROTOTYPES = {
         "تقرير طبي، استشارة، تشخيص، وصفة طبية، عيادة",
         "Medical report from a clinic with a consultation, diagnosis and prescription",
     ],
+    # Kept in step with CategoryPrototypes.kt — see the note there on why this
+    # is separate from 'university' rather than folded into it.
+    'paper': [
+        "Research paper with an abstract, introduction, method, experiments, results and a list of references",
+        "Article de recherche scientifique avec resume, introduction, methode, resultats et bibliographie",
+        "ورقة بحثية أكاديمية، ملخص، مقدمة، منهجية البحث، النتائج، لائحة المراجع",
+        "Preprint describing a model architecture, its training procedure and benchmark evaluation",
+        "Technical specification or standards document defining a protocol, in numbered sections with normative requirements",
+    ],
     'university': [
         "Releve de notes universitaire, attestation de scolarite, semestre, credits, moyenne",
         "University transcript or enrollment certificate with courses, grades and credits",

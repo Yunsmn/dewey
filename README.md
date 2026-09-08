@@ -105,15 +105,21 @@ search, and a category is another point in the same space, so a label is a
 nearest-neighbour lookup against a short description of each kind of document.
 
 Measured against the test corpus's own labels, that is **100% accurate** across
-twelve categories in French, Arabic and English. It costs nothing per file, works
-with no network, and means sorting a folder sends nothing anywhere at all.
+thirteen categories in French, Arabic and English. It costs nothing per file,
+works with no network, and means sorting a folder sends nothing anywhere at all.
 
-It also declines to answer. Documents that belong to none of the categories —
-a research paper, a manual, an RFC — score at most 0.792 against every category,
-while documents that do belong score at least 0.821 against their own. The gap is
-clean, so "none of these" is a measurement rather than a guess. Those documents
-are left exactly where they are and surfaced for review instead of being
-confidently filed somewhere wrong.
+A real Downloads folder is not only admin, so `Papers` is one of the thirteen:
+sixteen genuine arXiv papers and an RFC are all recognised as papers, fourteen of
+them confidently enough to file. Adding it cost nothing on the corpus — still
+100% — but it was worth checking, because a maths-heavy phrasing tried during
+tuning pulled an English university transcript into Papers and was dropped for it.
+
+It also declines to answer. A document has to clear 0.80 similarity against a
+category before the sort will act on it; below that it is left exactly where it
+is and surfaced for review rather than confidently filed somewhere wrong. Two of
+those sixteen papers land there — right about what they are, not quite sure
+enough to move. Erring high is deliberate: review is a mild annoyance, a
+confident misfile costs trust in the whole feature.
 
 Every move is written to an undo log as it happens, so an interrupted sort is
 still reversible, and the button that reverses it sits next to the one that

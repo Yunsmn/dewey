@@ -238,6 +238,7 @@ class SortWorker(
             DocType.WARRANTY -> "Warranties"
             DocType.ADMIN -> "Administrative"
             DocType.TRAVEL -> "Travel"
+            DocType.PAPER -> "Papers"
             DocType.UNKNOWN -> "Unsorted"
         }
 
