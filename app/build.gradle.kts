@@ -179,6 +179,13 @@ android {
             }
         }
 
+        debug {
+            // Debug builds are debuggable by definition, so the Test Store is
+            // happy in them — and developing the paywall without being able to
+            // run it would be absurd.
+            buildConfigField("String", "REVENUECAT_KEY", "\"$revenueCatKey\"")
+        }
+
         release {
             // Deliberately empty. See the demo build type above.
             buildConfigField("String", "REVENUECAT_KEY", "\"\"")
