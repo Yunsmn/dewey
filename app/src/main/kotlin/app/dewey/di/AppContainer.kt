@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import app.dewey.BuildConfig
 import app.dewey.classify.DocumentClassifier
+import app.dewey.billing.Entitlements
 import app.dewey.cloud.AnswerComposer
 import app.dewey.cloud.GeminiAnswerComposer
 import app.dewey.cloud.UnconfiguredAnswerComposer
@@ -92,6 +93,9 @@ class AppContainer(private val context: Context) {
     val answerComposer: AnswerComposer by lazy {
         if (BuildConfig.HAS_FIREBASE) GeminiAnswerComposer() else UnconfiguredAnswerComposer()
     }
+
+    /** Whether the paid tier is available — see [app.dewey.billing.Entitlements]. */
+    val entitlements: Entitlements by lazy { Entitlements(context) }
 
     /**
      * Overridable so instrumentation tests can index without loading a 120MB

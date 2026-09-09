@@ -52,6 +52,24 @@ if (hasFirebase) {
  * Absent credentials the release variant simply goes unsigned, so a clean clone
  * still builds. The same reasoning as the optional google-services.json.
  */
+/**
+ * The RevenueCat API key, if there is one.
+ *
+ * A Test Store key, so it unlocks a sandbox and nothing that costs money — but
+ * it is still an account credential in a public repo, so it lives in an
+ * uncommitted file beside keystore.properties rather than in source.
+ *
+ * Absent, the app builds and runs with every feature available: without a
+ * purchase system there is nothing to check an entitlement against, and a
+ * clean clone should be a working app rather than one locked out of its own
+ * best feature. See app.dewey.billing.Entitlements.
+ */
+val revenueCatProperties = Properties().apply {
+    val file = rootProject.file("revenuecat.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val revenueCatKey: String = revenueCatProperties.getProperty("apiKey").orEmpty()
+
 val keystoreProperties = Properties().apply {
     val file = rootProject.file("keystore.properties")
     if (file.exists()) file.inputStream().use { load(it) }
@@ -70,6 +88,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "REVENUECAT_KEY", "\"$revenueCatKey\"")
     }
 
     signingConfigs {
@@ -162,6 +181,8 @@ ksp {
 }
 
 dependencies {
+    implementation(libs.revenuecat.purchases)
+    implementation(libs.revenuecat.purchases.ui)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

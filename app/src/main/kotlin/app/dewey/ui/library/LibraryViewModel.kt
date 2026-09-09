@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import app.dewey.billing.Entitlements
 import app.dewey.data.repository.DocumentRepository
 import app.dewey.data.storage.DocumentTreeStore
 import app.dewey.di.AppContainer
@@ -32,6 +33,20 @@ import kotlinx.coroutines.launch
  */
 data class LibrarySection(val label: String, val documents: List<Document>)
 
+/**
+ * The four things about sorting that arrive on their own flows.
+ *
+ * Bundled because [combine] takes five flows and there are more than five
+ * signals to watch; grouping the ones that all describe the sort keeps the
+ * arity down without inventing an intermediate that means nothing.
+ */
+private data class SortState(
+    val task: TaskState,
+    val undoAvailable: Boolean,
+    val entitled: Boolean,
+    val paywallRequested: Boolean,
+)
+
 data class LibraryUiState(
     val sections: List<LibrarySection> = emptyList(),
     val totalDocuments: Int = 0,
@@ -44,6 +59,13 @@ data class LibraryUiState(
     val needsReview: List<Document> = emptyList(),
     /** True while the last sort can still be put back. */
     val canUndo: Boolean = false,
+    /**
+     * Whether the paid tier is available. True in a build with no RevenueCat
+     * key at all — see [app.dewey.billing.Entitlements].
+     */
+    val isEntitled: Boolean = true,
+    /** The sort was asked for without the entitlement to run it. */
+    val showPaywall: Boolean = false,
 ) {
     val isEmpty: Boolean get() = totalDocuments == 0 && task !is TaskState.Running
 
@@ -67,9 +89,13 @@ class LibraryViewModel(
     private val treeStore: DocumentTreeStore,
     private val taskRunner: TaskRunner,
     private val undoLog: UndoLog,
+    private val entitlements: Entitlements,
 ) : ViewModel() {
 
     private val undoAvailable = MutableStateFlow(false)
+
+    /** Set when the sort was asked for without the entitlement to run it. */
+    private val paywallRequested = MutableStateFlow(false)
 
     /**
      * Which task settled most recently, so the one banner shows the newer news.
@@ -82,8 +108,13 @@ class LibraryViewModel(
         repository.observeNeedingReview(),
         treeStore.grantedTrees,
         taskRunner.observe(DeweyTask.INDEX),
-        combine(taskRunner.observe(DeweyTask.SORT), undoAvailable) { sort, undo -> sort to undo },
-    ) { documents, review, trees, indexTask, (sortTask, undo) ->
+        combine(
+            taskRunner.observe(DeweyTask.SORT),
+            undoAvailable,
+            entitlements.isEntitled,
+            paywallRequested,
+        ) { sort, undo, entitled, paywall -> SortState(sort, undo, entitled, paywall) },
+    ) { documents, review, trees, indexTask, sort ->
         // Review documents are listed separately rather than inside their
         // section: burying the three files that need a decision among three
         // hundred that do not is the same as not surfacing them.
@@ -91,7 +122,7 @@ class LibraryViewModel(
         val filed = documents.filterNot { it.id in reviewIds }
 
         recordSettled(BannerSource.INDEX, indexTask)
-        recordSettled(BannerSource.SORT, sortTask)
+        recordSettled(BannerSource.SORT, sort.task)
 
         LibraryUiState(
             sections = filed.groupBy { it.categoryLabel(unfiled = it.docType.readable()) }
@@ -100,10 +131,12 @@ class LibraryViewModel(
             totalDocuments = documents.size,
             grantedFolders = trees.size,
             task = indexTask,
-            sortTask = sortTask,
-            banner = bannerTask(indexTask, sortTask, lastSettled.value),
+            sortTask = sort.task,
+            banner = bannerTask(indexTask, sort.task, lastSettled.value),
             needsReview = review,
-            canUndo = undo,
+            canUndo = sort.undoAvailable,
+            isEntitled = sort.entitled,
+            showPaywall = sort.paywallRequested,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -144,11 +177,32 @@ class LibraryViewModel(
         taskRunner.cancel(DeweyTask.SORT)
     }
 
+    /**
+     * Starts the sort, or asks to be paid for it.
+     *
+     * The gate is here rather than on the button. A disabled button with a
+     * padlock makes somebody guess what they are missing; letting them press
+     * the thing they came to press and answering with the offer is both more
+     * honest and the moment the offer means the most — they have a folder
+     * chosen and four hundred files waiting.
+     */
     fun onSort() {
         viewModelScope.launch {
+            if (!entitlements.isEntitled.first()) {
+                paywallRequested.value = true
+                return@launch
+            }
             val tree = treeStore.grantedTrees.first().firstOrNull() ?: return@launch
             taskRunner.startSort(tree)
         }
+    }
+
+    /** The paywall was closed, bought or not. */
+    fun onPaywallDismissed() {
+        paywallRequested.value = false
+        // The purchase, if there was one, reaches isEntitled through the SDK's
+        // listener. Re-reading here only removes the wait for it.
+        viewModelScope.launch { entitlements.refresh() }
     }
 
     fun onUndo() {
@@ -183,6 +237,7 @@ class LibraryViewModel(
                     repository = container.documentRepository,
                     treeStore = container.documentTreeStore,
                     taskRunner = container.taskRunner,
+                    entitlements = container.entitlements,
                     undoLog = container.undoLog,
                 ) as T
         }

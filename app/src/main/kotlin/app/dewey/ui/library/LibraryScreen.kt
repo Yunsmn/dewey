@@ -25,6 +25,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dewey.domain.model.DocType
+import app.dewey.billing.Entitlements
 import app.dewey.classify.DocumentClassifier
 import app.dewey.domain.model.Document
 import app.dewey.domain.model.TextSource
@@ -33,6 +34,7 @@ import app.dewey.ui.components.PrimaryAction
 import app.dewey.ui.components.SecondaryAction
 import app.dewey.ui.components.SectionHeading
 import app.dewey.ui.components.TaskBanner
+import app.dewey.ui.billing.LibrarianPaywall
 import app.dewey.ui.components.rememberNotificationPermissionRequest
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
@@ -41,6 +43,7 @@ import app.dewey.work.TaskState
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
+    entitlements: Entitlements,
     onSearch: () -> Unit,
     onBills: () -> Unit,
     onOpenDocument: (Document) -> Unit,
@@ -62,6 +65,14 @@ fun LibraryScreen(
             viewModel.onFolderGranted(it)
             askAboutNotifications()
         }
+    }
+
+    // Over the library rather than in place of it: see LibrarianPaywall.
+    if (state.showPaywall) {
+        LibrarianPaywall(
+            entitlements = entitlements,
+            onDismiss = viewModel::onPaywallDismissed,
+        )
     }
 
     LibraryContent(

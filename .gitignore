@@ -45,3 +45,7 @@ tools/corpus/real/
 keystore.properties
 *.jks
 *.keystore
+
+# RevenueCat API key. A Test Store key unlocks only a sandbox, but it is still
+# an account credential and this repo is public.
+revenuecat.properties

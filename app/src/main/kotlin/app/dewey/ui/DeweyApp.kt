@@ -52,6 +52,7 @@ fun DeweyApp(container: AppContainer) {
             val model: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(container))
             LibraryScreen(
                 viewModel = model,
+                entitlements = container.entitlements,
                 onSearch = { navController.navigate(Routes.SEARCH) },
                 onBills = { navController.navigate(Routes.BILLS) },
                 onOpenDocument = onOpenDocument,
