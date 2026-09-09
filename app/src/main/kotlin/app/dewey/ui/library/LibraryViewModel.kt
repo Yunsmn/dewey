@@ -22,7 +22,15 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-data class LibrarySection(val type: DocType, val documents: List<Document>)
+/**
+ * One heading in the library.
+ *
+ * Named by [label] rather than by a [DocType], because a category learned from
+ * the user's own folder has no DocType — "Voiture" is a real category with a
+ * real folder behind it and no enum case anywhere. Grouping by the folder makes
+ * the library agree with the file manager, which is the point of the whole app.
+ */
+data class LibrarySection(val label: String, val documents: List<Document>)
 
 data class LibraryUiState(
     val sections: List<LibrarySection> = emptyList(),
@@ -86,9 +94,9 @@ class LibraryViewModel(
         recordSettled(BannerSource.SORT, sortTask)
 
         LibraryUiState(
-            sections = filed.groupBy(Document::docType)
-                .map { (type, docs) -> LibrarySection(type, docs) }
-                .sortedWith(compareByDescending<LibrarySection> { it.documents.size }.thenBy { it.type.name }),
+            sections = filed.groupBy { it.categoryLabel(unfiled = it.docType.readable()) }
+                .map { (label, docs) -> LibrarySection(label, docs) }
+                .sortedWith(compareByDescending<LibrarySection> { it.documents.size }.thenBy { it.label }),
             totalDocuments = documents.size,
             grantedFolders = trees.size,
             task = indexTask,

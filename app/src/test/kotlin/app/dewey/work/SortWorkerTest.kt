@@ -59,29 +59,31 @@ class SortWorkerTest {
     )
 
     @Test
-    fun `recognises only the top-level folders that are the app's own categories`() {
+    fun `every top-level folder counts, not only the app's own`() {
+        // A folder the user made is a decision about where things go, exactly
+        // like one the app made. The sort moves loose documents; it does not
+        // overrule filing that already happened.
         val folders = listOf(
             folder("f1", "Bills"),
-            folder("f2", "some unrelated folder the user already had"),
+            folder("f2", "Voiture"),
             folder("f3", "Bank"),
         )
 
-        assertThat(alreadyFiledFolders(folders))
-            .containsExactly("f1", DocType.UTILITY_BILL, "f3", DocType.BANK_STATEMENT)
+        assertThat(topLevelFolderNames(folders))
+            .containsExactly("f1", "Bills", "f2", "Voiture", "f3", "Bank")
     }
 
     @Test
-    fun `no category folders yet means nothing is already filed`() {
-        assertThat(alreadyFiledFolders(emptyList())).isEmpty()
+    fun `no folders yet means nothing is already filed`() {
+        assertThat(topLevelFolderNames(emptyList())).isEmpty()
     }
 
     @Test
-    fun `the Unsorted folder is not a category`() {
-        // Its whole meaning is "nothing is known about this". Treating it as an
-        // answer would mark those documents filed and stop the next sort ever
-        // looking at them again.
+    fun `the Unsorted folder names no category`() {
+        // Its whole meaning is "nothing is known about this", so it must not
+        // resolve to a type — but a document sitting in it is still filed, and
+        // the sort still leaves it alone.
         assertThat(SortWorker.typeForFolderName("Unsorted")).isNull()
-        assertThat(alreadyFiledFolders(listOf(folder("f1", "Unsorted")))).isEmpty()
     }
 
     @Test
@@ -98,39 +100,46 @@ class SortWorkerTest {
     }
 
     @Test
-    fun `a document sitting directly inside a category folder is filed under that folder's type`() {
+    fun `a document inside a folder is filed under that folder's name`() {
         val billsId = "bills-folder-id"
         val documentInBills = document(parentDocumentId = billsId)
 
-        assertThat(documentInBills.filedUnder(mapOf(billsId to DocType.UTILITY_BILL)))
-            .isEqualTo(DocType.UTILITY_BILL)
+        assertThat(documentInBills.filedUnder(mapOf(billsId to "Bills"))).isEqualTo("Bills")
+    }
+
+    @Test
+    fun `a document in a folder the user invented is filed too`() {
+        // The category has no DocType and never will. The folder is the answer.
+        val documentInVoiture = document(parentDocumentId = "voiture-id")
+
+        assertThat(documentInVoiture.filedUnder(mapOf("voiture-id" to "Voiture")))
+            .isEqualTo("Voiture")
     }
 
     @Test
     fun `a document still at the tree root is not already filed`() {
         val documentAtRoot = document(parentDocumentId = "root")
 
-        assertThat(documentAtRoot.filedUnder(mapOf("bills-folder-id" to DocType.UTILITY_BILL)))
-            .isNull()
+        assertThat(documentAtRoot.filedUnder(mapOf("bills-folder-id" to "Bills"))).isNull()
     }
 
     @Test
     fun `a second sort over an already-sorted layout recognises what each document is`() {
         // findPdfs() walks into Bills and Bank on a rerun. Those documents must
         // not be counted toward review — and, the part that was missing, the
-        // folder each one sits in has to be read back as its type. Without that
-        // a reinstall over a sorted folder leaves every file under "Unsorted",
-        // because the database was wiped while the folders on disk were not.
-        val categories = alreadyFiledFolders(
-            listOf(folder("bills-id", "Bills"), folder("bank-id", "Bank")),
+        // folder each one sits in has to be read back. Without that a reinstall
+        // over a sorted folder leaves every file under "Unsorted", because the
+        // database was wiped while the folders on disk were not.
+        val folders = topLevelFolderNames(
+            listOf(folder("bills-id", "Bills"), folder("voiture-id", "Voiture")),
         )
         val secondPassDocuments = listOf(
             document(documentId = "1", parentDocumentId = "bills-id"),
-            document(documentId = "2", parentDocumentId = "bank-id"),
+            document(documentId = "2", parentDocumentId = "voiture-id"),
         )
 
-        assertThat(secondPassDocuments.map { it.filedUnder(categories) })
-            .containsExactly(DocType.UTILITY_BILL, DocType.BANK_STATEMENT)
+        assertThat(secondPassDocuments.map { it.filedUnder(folders) })
+            .containsExactly("Bills", "Voiture")
             .inOrder()
     }
 

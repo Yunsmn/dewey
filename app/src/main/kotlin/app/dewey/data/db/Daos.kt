@@ -23,6 +23,23 @@ data class DocumentOpening(
     val opening: String?,
 )
 
+/**
+ * A document's identity and the embedding of its opening.
+ *
+ * Chunk zero is the opening, which is what classification looks at — so this is
+ * the same vector the classifier would compute, read back rather than recomputed.
+ * Learning a category from a folder needs one of these per document in it.
+ */
+data class DocumentVector(
+    val uri: String,
+    val embedding: ByteArray,
+) {
+    override fun equals(other: Any?): Boolean =
+        other is DocumentVector && uri == other.uri && embedding.contentEquals(other.embedding)
+
+    override fun hashCode(): Int = 31 * uri.hashCode() + embedding.contentHashCode()
+}
+
 @Dao
 interface DocumentDao {
 
@@ -69,6 +86,21 @@ interface DocumentDao {
             "FROM documents WHERE indexed_at IS NOT NULL"
     )
     suspend fun allIndexedOpenings(openingChars: Int): List<DocumentOpening>
+
+    /**
+     * Every indexed document's opening embedding, keyed by URI.
+     *
+     * Joined on ordinal 0 rather than averaging a document's chunks: the
+     * opening is what says what a document is, and it is what the categories
+     * were measured against. A document whose chunks never made it into the
+     * table simply does not appear.
+     */
+    @Query(
+        "SELECT d.uri AS uri, c.embedding AS embedding " +
+            "FROM documents d JOIN chunks c ON c.document_id = d.id " +
+            "WHERE c.ordinal = 0 AND d.indexed_at IS NOT NULL"
+    )
+    suspend fun openingVectors(): List<DocumentVector>
 
     @Query("SELECT * FROM documents WHERE review_reason IS NOT NULL ORDER BY classify_margin ASC")
     fun observeNeedingReview(): Flow<List<DocumentRow>>

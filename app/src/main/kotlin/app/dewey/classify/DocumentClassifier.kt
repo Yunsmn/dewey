@@ -24,7 +24,18 @@ class DocumentClassifier(
 ) {
 
     sealed interface Verdict {
-        data class Confident(val type: DocType, val similarity: Float, val margin: Float) : Verdict
+        /**
+         * @param folderName set only when the winner was a category learned
+         *   from the user's own folder, in which case it — not [type] — names
+         *   where the document goes. [type] is then whatever that folder's name
+         *   happens to map to, often [DocType.UNKNOWN].
+         */
+        data class Confident(
+            val type: DocType,
+            val similarity: Float,
+            val margin: Float,
+            val folderName: String? = null,
+        ) : Verdict
 
         /**
          * The document belongs in the review queue.
@@ -62,7 +73,12 @@ class DocumentClassifier(
             }
         }
 
-    suspend fun classify(text: String): Verdict {
+    /**
+     * @param learned categories the user taught by filing documents into folders
+     *   of their own. Scored in the same pass as the built-in descriptions and
+     *   against the same thresholds — see [scoreAll].
+     */
+    suspend fun classify(text: String, learned: List<LearnedCategory> = emptyList()): Verdict {
         if (text.isBlank()) {
             return Verdict.Unsure(Verdict.Reason.NO_TEXT, null, 0f, 0f)
         }
@@ -71,37 +87,106 @@ class DocumentClassifier(
         // first paragraph. Later pages are detail, and averaging them in blurs
         // the signal that distinguishes a lease from a bill.
         val opening = text.take(OPENING_CHARS)
-        val vector = embedder.embedPassages(listOf(opening)).first()
+        return decide(embedder.embedPassages(listOf(opening)).first(), learned)
+    }
 
-        // Best single description per category, not the mean over its
-        // descriptions: they are written in different languages, and averaging a
-        // French and an Arabic one lands between both and matches neither.
-        val bestPerType = HashMap<DocType, Float>()
-        for ((type, prototype) in prototypes()) {
-            val score = VectorMath.dot(vector, prototype)
-            if (score > (bestPerType[type] ?: Float.NEGATIVE_INFINITY)) {
-                bestPerType[type] = score
-            }
-        }
-
-        val ranked = bestPerType.entries.sortedByDescending { it.value }
+    /**
+     * The same decision from a vector that has already been computed.
+     *
+     * Sorting a folder has every document's opening embedding in hand already —
+     * it was stored at import time — so re-embedding here would pay for the
+     * encoder twice per document. It would also compare unlike with unlike: a
+     * learned category's examples are those stored vectors, and scoring an
+     * arriving document against them only means anything if it is represented
+     * the same way. It is not a rounding error. On a device test two medical
+     * documents that belonged in the user's own folder went to review because
+     * their re-embedded opening covered more text than the stored openings they
+     * were being compared against.
+     */
+    suspend fun decide(vector: FloatArray, learned: List<LearnedCategory> = emptyList()): Verdict {
+        val ranked = scoreAll(vector, prototypes(), learned)
         if (ranked.isEmpty()) {
             return Verdict.Unsure(Verdict.Reason.NOTHING_FITS, null, 0f, 0f)
         }
 
         val top = ranked[0]
-        val margin = if (ranked.size > 1) top.value - ranked[1].value else top.value
+        val margin = if (ranked.size > 1) top.score - ranked[1].score else top.score
 
         return when {
-            top.value < minimumSimilarity ->
-                Verdict.Unsure(Verdict.Reason.NOTHING_FITS, top.key, top.value, margin)
-            margin < minimumMargin ->
-                Verdict.Unsure(Verdict.Reason.TOO_CLOSE, top.key, top.value, margin)
-            else -> Verdict.Confident(top.key, top.value, margin)
+            top.score < minimumSimilarity ->
+                Verdict.Unsure(Verdict.Reason.NOTHING_FITS, top.type, top.score, margin)
+
+            // A learned category winning narrowly is not a real doubt. The
+            // runner-up in that case is almost always the built-in category
+            // covering the same ground — "Medical" against the user's own
+            // "Sante de famille" — and asking someone to choose between our
+            // word for it and theirs is not a question worth asking. Theirs
+            // wins. A tie between two *built-in* categories is a genuine "this
+            // could be two things" and still goes to review.
+            margin < minimumMargin && top.folderName == null ->
+                Verdict.Unsure(Verdict.Reason.TOO_CLOSE, top.type, top.score, margin)
+
+            else -> Verdict.Confident(top.type, top.score, margin, top.folderName)
         }
     }
 
+    /** One candidate category and how well the document fits it. */
+    internal data class Candidate(
+        val type: DocType,
+        val score: Float,
+        /** Null for a category the app ships with. */
+        val folderName: String?,
+    )
+
     companion object {
+
+        /**
+         * Every category, built-in and learned, on one scale.
+         *
+         * The two are ranked together rather than consulted in turn. Asking the
+         * learned ones first looked reasonable — the user's own filing should
+         * outrank a sentence we wrote — and was wrong in a way a device test
+         * caught: with a single learned folder there is no runner-up, so the
+         * margin check never fires and every document clearing the floor falls
+         * into it. A utility bill went into a folder of medical documents
+         * because the built-in classifier was never asked.
+         *
+         * Scoring a document against real documents does read higher than
+         * scoring it against a description, so the comparison is not perfectly
+         * fair. Measured on that same case it does not matter: the four medical
+         * documents beat their built-in category (0.86-0.96 against 0.84-0.87)
+         * and the three bills lost to theirs (0.84 against 0.86). The signal is
+         * bigger than the bias.
+         *
+         * Built-in categories take the best single description rather than a
+         * mean over them: they are written in different languages, and averaging
+         * a French and an Arabic one lands between both and matches neither.
+         */
+        internal fun scoreAll(
+            vector: FloatArray,
+            prototypes: List<Pair<DocType, FloatArray>>,
+            learned: List<LearnedCategory>,
+        ): List<Candidate> {
+            val bestPerType = HashMap<DocType, Float>()
+            for ((type, prototype) in prototypes) {
+                val score = VectorMath.dot(vector, prototype)
+                if (score > (bestPerType[type] ?: Float.NEGATIVE_INFINITY)) {
+                    bestPerType[type] = score
+                }
+            }
+
+            val builtIn = bestPerType.map { (type, score) -> Candidate(type, score, null) }
+            val taught = learned.map { category ->
+                Candidate(
+                    type = DocType.UNKNOWN,
+                    score = category.score(vector),
+                    folderName = category.folderName,
+                )
+            }
+
+            return (builtIn + taught).sortedByDescending { it.score }
+        }
+
         /**
          * Below this, the document is not any of the categories.
          *

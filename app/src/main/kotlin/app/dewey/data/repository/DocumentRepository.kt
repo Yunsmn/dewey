@@ -182,4 +182,6 @@ private fun DocumentRow.toDomain(): Document = Document(
     currency = currency,
     issueDate = issueDateEpochDay?.let(LocalDate::ofEpochDay),
     dueDate = dueDateEpochDay?.let(LocalDate::ofEpochDay),
+    sortedFolder = sortedFolder,
+    reviewReason = reviewReason,
 )

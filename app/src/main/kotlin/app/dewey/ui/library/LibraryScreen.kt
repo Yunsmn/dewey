@@ -25,6 +25,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dewey.domain.model.DocType
+import app.dewey.classify.DocumentClassifier
 import app.dewey.domain.model.Document
 import app.dewey.domain.model.TextSource
 import app.dewey.ui.components.DocumentRow
@@ -150,9 +151,9 @@ private fun LibraryContent(
             }
 
             for (section in state.sections) {
-                item(key = "heading-${section.type.name}") {
+                item(key = "heading-${section.label}") {
                     Spacer(Modifier.height(Dewey.spacing.row))
-                    SectionHeading(label = section.type.readable(), count = section.documents.size)
+                    SectionHeading(label = section.label, count = section.documents.size)
                 }
                 items(section.documents, key = { it.id }) { document ->
                     DocumentRow(
@@ -271,12 +272,31 @@ private fun countLabel(count: Int, noun: String): String =
 private fun Document.title(): String? =
     if (docType == DocType.UNKNOWN) null else documentTitle(vendor, issueDate, dueDate)
 
-/** Why this document is waiting, in words rather than an enum name. */
+/**
+ * Why this document is waiting, in words rather than an enum name.
+ *
+ * The reason is read rather than assumed. Every document in the queue used to
+ * be described as "doesn't look like anything Dewey files", which is one of
+ * three quite different situations and was simply wrong for the other two —
+ * a document that could equally be two things has not failed to look like
+ * anything, and saying so sends the reader hunting for a problem that is not
+ * there.
+ */
 private fun Document.reviewSubtitle(): String {
     val pages = if (pageCount > 0) "$pageCount page${if (pageCount == 1) "" else "s"} · " else ""
-    return pages + when (textSource) {
-        TextSource.FAILED, TextSource.NONE -> "nothing readable in it"
-        else -> "doesn't look like anything Dewey files"
+
+    if (textSource == TextSource.FAILED || textSource == TextSource.NONE) {
+        return pages + "nothing readable in it"
+    }
+
+    return pages + when (reviewReason) {
+        DocumentClassifier.Verdict.Reason.TOO_CLOSE.name -> "could be more than one thing"
+        DocumentClassifier.Verdict.Reason.NOTHING_FITS.name -> "doesn't look like anything Dewey files"
+        DocumentClassifier.Verdict.Reason.NO_TEXT.name -> "nothing readable in it"
+        // The mover's own words when it refused a move — "a file of that name
+        // is already in Bills" — which are already a sentence.
+        null -> "doesn't look like anything Dewey files"
+        else -> reviewReason
     }
 }
 
@@ -290,7 +310,7 @@ private fun Document.subtitle(): String? {
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
-private fun DocType.readable(): String = when (this) {
+internal fun DocType.readable(): String = when (this) {
     DocType.UNKNOWN -> "Unsorted"
     DocType.UTILITY_BILL -> "Bills"
     DocType.BANK_STATEMENT -> "Bank"
@@ -320,9 +340,11 @@ private fun LibraryPreview() {
         LibraryContent(
             state = LibraryUiState(
                 sections = listOf(
-                    LibrarySection(DocType.UTILITY_BILL, documents.take(2)),
-                    LibrarySection(DocType.BANK_STATEMENT, documents.subList(2, 3)),
-                    LibrarySection(DocType.INVOICE, documents.subList(3, 4)),
+                    LibrarySection("Bills", documents.take(2)),
+                    LibrarySection("Bank", documents.subList(2, 3)),
+                    // A category learned from a folder the user made, which is
+                    // why the preview has one that is not any DocType.
+                    LibrarySection("Voiture", documents.subList(3, 4)),
                 ),
                 totalDocuments = 4,
                 grantedFolders = 1,

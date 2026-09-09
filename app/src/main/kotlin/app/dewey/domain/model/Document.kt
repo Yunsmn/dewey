@@ -30,8 +30,32 @@ data class Document(
     val currency: String? = null,
     val issueDate: LocalDate? = null,
     val dueDate: LocalDate? = null,
+    /**
+     * The folder this document was filed into, if it was.
+     *
+     * Carried alongside [docType] rather than derived from it because the two
+     * can disagree, and when they do the folder wins. A category learned from
+     * the user's own filing — "Voiture", "Immigration" — has a folder and no
+     * [DocType] at all, and it is still the truthful answer to what the
+     * document is. See app.dewey.classify.CategoryLearner.
+     */
+    val sortedFolder: String? = null,
+    /**
+     * Why this document is waiting, as a
+     * [app.dewey.classify.DocumentClassifier.Verdict.Reason] name, or the
+     * mover's own words when a move was refused. Null when nothing is wrong.
+     */
+    val reviewReason: String? = null,
 ) {
     val isIndexed: Boolean get() = indexedAt != null
+
+    /**
+     * What to call this document's category.
+     *
+     * The folder first: it is either the user's own word for it or the app's,
+     * and either way it is what they will see in their file manager.
+     */
+    fun categoryLabel(unfiled: String): String = sortedFolder ?: unfiled
 }
 
 /**
