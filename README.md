@@ -28,9 +28,7 @@ it is called `2847373.pdf`. Dewey is built around that gap.
   rather than interrupting you four hundred times.
 - **Find.** Ask for a document by what it was about, not what it was named.
 - **Bills.** Detected bills and invoices, with vendor, amount and due date pulled
-  out, plus reminders and notes. Opens the source PDF from the entry.
-- **Travel.** Boarding passes and bookings, dates extracted, reminders set.
-- **Summarize.** For the long ones.
+  out, grouped by how soon they are due. Opens the source PDF from the entry.
 
 The free tier is deliberately a complete app. The paywall is the agent and
 nothing else.
@@ -124,6 +122,25 @@ confident misfile costs trust in the whole feature.
 Every move is written to an undo log as it happens, so an interrupted sort is
 still reversible, and the button that reverses it sits next to the one that
 starts it.
+
+### Purchases: RevenueCat, on the Test Store
+
+The paid tier is gated by a RevenueCat entitlement, and the paywall is
+RevenueCat-hosted so its copy and prices come from the dashboard rather than
+from a build.
+
+**Purchases are simulated.** This entry is judged on a repo and a video and is
+never going to a store, so it uses RevenueCat's Test Store: a self-contained
+sandbox needing no Play Console and no real products. That is a deliberate
+choice, not an unfinished one. RevenueCat refuses a Test Store key in a
+non-debuggable build — rightly, since such a key earns nothing — which is why
+there is a separate `demo` build type. The `release` variant carries no purchase
+key at all, which is a stronger guarantee that a test key cannot reach a store
+than remembering not to ship one.
+
+A clone with no `revenuecat.properties` unlocks every feature rather than
+locking them. There is nothing to buy without a purchase system, and a repo
+someone clones to read should run.
 
 ### Cloud access: Firebase AI Logic
 
@@ -225,18 +242,23 @@ Kept current and honest.
 
 - [x] Stage 1 — storage, extraction, on-device index. Verified on device against
       114 real documents, including a 1012-page scan with no text layer.
-- [x] Stage 2 — find. Hybrid retrieval works on device; the cloud answer layer
-      is not wired yet.
-- [~] Stage 3 — sort. Classification, folder creation, moves, review queue and
-      undo are built and unit-tested; the end-to-end run on device is not yet
-      confirmed.
-- [ ] Stage 4 — bills dashboard
-- [ ] Stage 5 — RevenueCat paywall
-- [ ] Stage 6 — PDF toolkit
+- [x] Stage 2 — find. Hybrid retrieval on device, with the cloud answer layer
+      wired through Firebase AI Logic.
+- [x] Stage 3 — sort. Classification, folder creation, moves, review queue and
+      undo, confirmed end to end on a signed build: 96 of 114 documents filed
+      into 11 folders, the rest held back for review.
+- [x] Stage 4 — bills dashboard
+- [x] Stage 5 — RevenueCat paywall. Test Store, so purchases are simulated and
+      earn nothing — see [Cloud access](#cloud-access-firebase-ai-logic) below
+      for why that is deliberate rather than unfinished.
+- [~] Stage 6 — PDF toolkit. In progress.
 
 Measured, not asserted: retrieval is 81% recall@1 and 95% recall@3 over the test
-corpus; classification is 100% over its twelve categories. Both harnesses are in
-`tools/eval/` and can be re-run.
+corpus; classification is 100% over thirteen categories, and the app also learns
+categories from folders you already keep — a folder of your own documents
+describes them about three times more sharply than any description we wrote
+(margin 0.089 against 0.027, leave-one-out). Every harness is in `tools/eval/`
+and can be re-run.
 
 ---
 
