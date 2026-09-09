@@ -244,7 +244,7 @@ private fun Status(text: String, isError: Boolean = false) {
 private const val SNIPPET_CHARS = 260
 private const val MIN_HIGHLIGHT = 3
 
-@Preview(showBackground = true, backgroundColor = 0xFFFAF7F2, heightDp = 700, widthDp = 390)
+@Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 700, widthDp = 390)
 @Composable
 private fun SearchPreview() {
     val document = Document(1, "u", "document (5).pdf", 1080, 0, 1, DocType.UTILITY_BILL)

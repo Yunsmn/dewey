@@ -206,7 +206,7 @@ private fun ProgressRule(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFFAF7F2, widthDp = 390)
+@Preview(showBackground = true, backgroundColor = 0xFF0B0F17, widthDp = 390)
 @Composable
 private fun TaskBannerPreview() {
     DeweyTheme {

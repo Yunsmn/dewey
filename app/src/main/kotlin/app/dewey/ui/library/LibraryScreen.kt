@@ -3,7 +3,9 @@ package app.dewey.ui.library
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,8 +13,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -20,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -32,6 +37,7 @@ import app.dewey.domain.model.TextSource
 import app.dewey.ui.components.DocumentRow
 import app.dewey.ui.components.PrimaryAction
 import app.dewey.ui.components.SecondaryAction
+import app.dewey.ui.components.NavBarClearance
 import app.dewey.ui.components.SectionHeading
 import app.dewey.ui.components.TaskBanner
 import app.dewey.ui.billing.LibrarianPaywall
@@ -44,8 +50,6 @@ import app.dewey.work.TaskState
 fun LibraryScreen(
     viewModel: LibraryViewModel,
     entitlements: Entitlements,
-    onSearch: () -> Unit,
-    onBills: () -> Unit,
     onOpenDocument: (Document) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -77,8 +81,6 @@ fun LibraryScreen(
 
     LibraryContent(
         state = state,
-        onSearch = onSearch,
-        onBills = onBills,
         onAddFolder = { pickFolder.launch(null) },
         onCancelIndexing = viewModel::onCancelIndexing,
         onSort = viewModel::onSort,
@@ -91,8 +93,6 @@ fun LibraryScreen(
 @Composable
 private fun LibraryContent(
     state: LibraryUiState,
-    onSearch: () -> Unit,
-    onBills: () -> Unit,
     onAddFolder: () -> Unit,
     onCancelIndexing: () -> Unit,
     onSort: () -> Unit,
@@ -110,11 +110,11 @@ private fun LibraryContent(
                 start = Dewey.spacing.gutter,
                 end = Dewey.spacing.gutter,
                 top = Dewey.spacing.block,
-                bottom = Dewey.spacing.section,
+                bottom = NavBarClearance,
             ),
         ) {
             item(key = "masthead") {
-                Masthead(state, onSearch, onBills)
+                Masthead(state)
                 Spacer(Modifier.height(Dewey.spacing.gutter))
             }
 
@@ -210,22 +210,18 @@ private fun LibraryActions(state: LibraryUiState, onSort: () -> Unit, onUndo: ()
 }
 
 @Composable
-private fun Masthead(state: LibraryUiState, onSearch: () -> Unit, onBills: () -> Unit) {
+private fun Masthead(state: LibraryUiState) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // The Bills and Find buttons used to live here. They are tabs now —
+            // two ways to reach one screen is one too many, and the row they sat
+            // in is better spent on the mark.
             Text("Library", style = Dewey.type.Display, color = Dewey.colors.ink)
-            // Both are only meaningful once something is shelved, so they appear
-            // with the first document rather than sitting dead on an empty page.
-            if (state.totalDocuments > 0) {
-                Row(horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.tight)) {
-                    SecondaryAction(label = "Bills", onClick = onBills)
-                    SecondaryAction(label = "Find", onClick = onSearch)
-                }
-            }
+            Mark()
         }
         Spacer(Modifier.height(Dewey.spacing.tight))
         Row(horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.tight)) {
@@ -268,6 +264,31 @@ private fun EmptyLibrary(onAddFolder: () -> Unit) {
         )
         Spacer(Modifier.height(Dewey.spacing.block))
         PrimaryAction(label = "Choose a folder", onClick = onAddFolder)
+    }
+}
+
+/**
+ * The app's mark, bottom-right of the masthead.
+ *
+ * A single glyph on the accent, and the only place the brand appears. An app
+ * that files four hundred documents does not need to introduce itself on every
+ * screen — but with a bar of grey tabs below and a wall of filenames beneath,
+ * one saturated square is what stops the screen reading as a file listing.
+ */
+@Composable
+private fun Mark() {
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(Dewey.colors.accent),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "d",
+            style = Dewey.type.Title,
+            color = Dewey.colors.onAccent,
+        )
     }
 }
 
@@ -338,7 +359,7 @@ internal fun DocType.readable(): String = when (this) {
     DocType.PAPER -> "Papers"
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFFAF7F2, heightDp = 780, widthDp = 390)
+@Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 780, widthDp = 390)
 @Composable
 private fun LibraryPreview() {
     val documents = listOf(
@@ -361,8 +382,6 @@ private fun LibraryPreview() {
                 grantedFolders = 1,
                 task = TaskState.Running(37, 312, "Scan_20240312_004.pdf"),
             ),
-            onSearch = {},
-            onBills = {},
             onAddFolder = {},
             onCancelIndexing = {},
             onSort = {},
@@ -372,10 +391,10 @@ private fun LibraryPreview() {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFFAF7F2, heightDp = 780, widthDp = 390)
+@Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 780, widthDp = 390)
 @Composable
 private fun LibraryEmptyPreview() {
     DeweyTheme {
-        LibraryContent(LibraryUiState(), {}, {}, {}, {}, {}, {}, {})
+        LibraryContent(LibraryUiState(), {}, {}, {}, {}, {})
     }
 }

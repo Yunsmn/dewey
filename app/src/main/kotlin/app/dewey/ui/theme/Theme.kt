@@ -34,7 +34,23 @@ data class DeweyPalette(
     val attention: Color,
     val attentionSoft: Color,
     val danger: Color,
+    val dangerSoft: Color,
     val onAccent: Color,
+    /** The card surface. Translucent in dark, opaque in light — see the palettes. */
+    val glass: Color,
+    /**
+     * For controls that float over moving content rather than sitting on the
+     * ground — the navigation bar above all.
+     *
+     * Opaque, unlike [glass], and deliberately so. A card is translucent over
+     * a background that holds still, and what shows through reads as depth. A
+     * bar with a list scrolling underneath it at the same alpha shows filenames
+     * sliding through the tab labels: that reads as a rendering fault, not as
+     * glass. Compose cannot blur a backdrop below API 31, so depth here comes
+     * from a shadow instead.
+     */
+    val glassRaised: Color,
+    val glassBorder: Color,
 )
 
 /**
@@ -55,35 +71,49 @@ data class DeweySpacing(
 )
 
 private val LightPalette = DeweyPalette(
-    paper = DeweyColors.Paper,
-    paperRaised = DeweyColors.PaperRaised,
-    paperSunken = DeweyColors.PaperSunken,
+    paper = DeweyColors.GroundLight,
+    paperRaised = DeweyColors.SurfaceLight,
+    paperSunken = DeweyColors.SurfaceSunkenLight,
+    ink = DeweyColors.InkLight,
+    inkMuted = DeweyColors.InkMutedLight,
+    inkFaint = DeweyColors.InkFaintLight,
+    rule = DeweyColors.HairlineLight,
+    accent = DeweyColors.AccentLight,
+    accentSoft = DeweyColors.AccentSoftLight,
+    attention = DeweyColors.AttentionLight,
+    attentionSoft = DeweyColors.AttentionSoftLight,
+    danger = DeweyColors.DangerLight,
+    dangerSoft = DeweyColors.DangerSoftLight,
+    onAccent = DeweyColors.OnAccent,
+    // Opaque in light. A translucent white card on a near-white ground has
+    // nothing to show through it and only costs a blur.
+    glass = DeweyColors.SurfaceLight,
+    glassRaised = DeweyColors.SurfaceLight,
+    glassBorder = DeweyColors.HairlineLight,
+)
+
+private val DarkPalette = DeweyPalette(
+    paper = DeweyColors.Ground,
+    paperRaised = DeweyColors.Surface,
+    paperSunken = DeweyColors.SurfaceSunken,
     ink = DeweyColors.Ink,
     inkMuted = DeweyColors.InkMuted,
     inkFaint = DeweyColors.InkFaint,
-    rule = DeweyColors.Rule,
+    rule = DeweyColors.Hairline,
     accent = DeweyColors.Accent,
     accentSoft = DeweyColors.AccentSoft,
     attention = DeweyColors.Attention,
     attentionSoft = DeweyColors.AttentionSoft,
     danger = DeweyColors.Danger,
-    onAccent = DeweyColors.Paper,
-)
-
-private val DarkPalette = DeweyPalette(
-    paper = DeweyColors.PaperDark,
-    paperRaised = DeweyColors.PaperRaisedDark,
-    paperSunken = DeweyColors.PaperSunkenDark,
-    ink = DeweyColors.InkDark,
-    inkMuted = DeweyColors.InkMutedDark,
-    inkFaint = DeweyColors.InkFaintDark,
-    rule = DeweyColors.RuleDark,
-    accent = DeweyColors.AccentDark,
-    accentSoft = DeweyColors.AccentSoftDark,
-    attention = DeweyColors.AttentionDark,
-    attentionSoft = DeweyColors.AttentionSoftDark,
-    danger = DeweyColors.DangerDark,
-    onAccent = DeweyColors.PaperDark,
+    dangerSoft = DeweyColors.DangerSoft,
+    onAccent = DeweyColors.OnAccent,
+    // The card surface at ~72%, so the ground reads through it. Compose has no
+    // backdrop blur below API 31, and blurring a scrolling list would cost more
+    // than it returns on a mid-range phone — so the depth here comes from
+    // translucency and a lifted hairline rather than from a real blur.
+    glass = DeweyColors.Surface.copy(alpha = 0.72f),
+    glassRaised = DeweyColors.Surface,
+    glassBorder = DeweyColors.Hairline,
 )
 
 val LocalDeweyPalette = staticCompositionLocalOf { LightPalette }
@@ -99,9 +129,16 @@ object Dewey {
     val type = DeweyType
 }
 
+/**
+ * @param dark defaults to true rather than to the system setting. The palette is
+ *   designed dark — translucent surfaces over a deep navy ground — and light is
+ *   the adaptation, so a phone set to light should not be the first thing a new
+ *   user sees the app in. [isSystemInDarkTheme] is still what the setting screen
+ *   would hand in once there is one.
+ */
 @Composable
 fun DeweyTheme(
-    dark: Boolean = isSystemInDarkTheme(),
+    dark: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val palette = if (dark) DarkPalette else LightPalette

@@ -69,6 +69,33 @@ object DeweyType {
     )
 
     /**
+     * What a bill costs.
+     *
+     * Monospaced like [Mono] so amounts align down a column, but set at reading
+     * size and heavy — on the bills screen the number is the answer, and it
+     * should be the first thing found rather than something read off the end of
+     * a row.
+     */
+    val Amount = TextStyle(
+        fontFamily = FontFamily.Monospace,
+        fontWeight = FontWeight.Bold,
+        fontSize = 16.sp,
+        lineHeight = 20.sp,
+    )
+
+    /**
+     * Tab labels and chips. Smaller than [Label] and without its letterspacing,
+     * because at 10sp tracking stops reading as deliberate and starts reading
+     * as a rendering fault.
+     */
+    val Micro = TextStyle(
+        fontFamily = Sans,
+        fontWeight = FontWeight.Medium,
+        fontSize = 10.sp,
+        lineHeight = 12.sp,
+    )
+
+    /**
      * Filenames and amounts. Monospaced so digits align down a column and
      * `Scan_20240312_004.pdf` is legible as the machine string it is.
      */

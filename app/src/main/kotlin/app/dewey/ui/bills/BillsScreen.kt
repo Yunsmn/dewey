@@ -1,6 +1,8 @@
 package app.dewey.ui.bills
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,12 +19,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dewey.domain.model.DocType
 import app.dewey.domain.model.Document
-import app.dewey.ui.components.DocumentRow
+import app.dewey.ui.components.GlassCard
+import app.dewey.ui.components.NavBarClearance
 import app.dewey.ui.components.SectionHeading
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
@@ -55,7 +59,7 @@ private fun BillsContent(
                 start = Dewey.spacing.gutter,
                 end = Dewey.spacing.gutter,
                 top = Dewey.spacing.block,
-                bottom = Dewey.spacing.section,
+                bottom = NavBarClearance,
             ),
         ) {
             item(key = "masthead") {
@@ -69,16 +73,18 @@ private fun BillsContent(
 
             for (section in state.sections) {
                 item(key = "heading-${section.urgency.name}") {
+                    Spacer(Modifier.height(Dewey.spacing.tight))
                     SectionHeading(label = section.urgency.label(), count = section.documents.size)
+                    Spacer(Modifier.height(Dewey.spacing.tight))
                 }
                 items(section.documents, key = { it.id }) { document ->
-                    BillRow(
+                    BillCard(
                         document = document,
                         urgency = section.urgency,
                         today = state.today,
                         onClick = { onOpenDocument(document) },
                     )
-                    HorizontalDivider(color = Dewey.colors.rule, thickness = 1.dp)
+                    Spacer(Modifier.height(Dewey.spacing.tight))
                 }
             }
         }
@@ -86,25 +92,89 @@ private fun BillsContent(
 }
 
 /**
- * One bill: vendor as the title (or the filename in mono, honestly, when
- * extraction found no vendor - same fallback DocumentRow already uses),
- * amount trailing, due date as the subtitle. Only an overdue due date takes
- * the attention colour - everything else stays the usual muted ink.
+ * One bill, as a card rather than a row in a list.
  *
- * [today] comes from [BillsUiState] rather than a fresh `LocalDate.now()`
- * here, so a row's wording never disagrees with the section it was sorted
- * into - see the doc on BillsUiState.today.
+ * A bill is not the same kind of thing as a document in the library. It has a
+ * deadline attached, and money, and both are answers to a question somebody
+ * came to the screen holding — so the amount is set large enough to scan down
+ * a column, and the urgency is carried by a coloured edge that can be taken in
+ * without reading a word.
+ *
+ * Red for overdue, amber for due soon, and no edge at all for later — because
+ * a colour on every card is a colour that means nothing. Colour is never the
+ * only signal: the section heading above says the same thing in words, and the
+ * subtitle spells out "Overdue by 3 days".
+ *
+ * [today] comes from [BillsUiState] rather than a fresh `LocalDate.now()` here,
+ * so a card's wording never disagrees with the section it was sorted into —
+ * see the doc on BillsUiState.today.
  */
 @Composable
-private fun BillRow(document: Document, urgency: BillUrgency, today: LocalDate, onClick: () -> Unit) {
-    DocumentRow(
-        title = document.vendor?.trim()?.takeIf { it.isNotEmpty() },
-        subtitle = document.dueDate?.let { dueDateWords(it, today) },
-        filename = document.displayName,
-        trailing = document.amount?.let { formatBillAmount(it, document.currency) },
-        subtitleColor = if (urgency == BillUrgency.OVERDUE) Dewey.colors.attention else Dewey.colors.inkMuted,
+private fun BillCard(document: Document, urgency: BillUrgency, today: LocalDate, onClick: () -> Unit) {
+    val edge = when (urgency) {
+        BillUrgency.OVERDUE -> Dewey.colors.danger
+        BillUrgency.DUE_SOON -> Dewey.colors.attention
+        BillUrgency.LATER -> null
+    }
+
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        accent = edge,
         onClick = onClick,
-    )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = document.vendor?.trim()?.takeIf { it.isNotEmpty() }
+                        ?: document.displayName,
+                    style = Dewey.type.Title,
+                    color = Dewey.colors.ink,
+                    // "Lydec - Distribution Eau et Electricite" is a real vendor
+                    // string and it runs to two lines at this size. Two is the
+                    // most a card can give it before the amount beside it stops
+                    // reading as the same row.
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                document.dueDate?.let { due ->
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = dueDateWords(due, today),
+                        style = Dewey.type.Meta,
+                        color = when (urgency) {
+                            BillUrgency.OVERDUE -> Dewey.colors.danger
+                            BillUrgency.DUE_SOON -> Dewey.colors.attention
+                            BillUrgency.LATER -> Dewey.colors.inkMuted
+                        },
+                    )
+                }
+            }
+
+            document.amount?.let { amount ->
+                Text(
+                    text = formatBillAmount(amount, document.currency),
+                    style = Dewey.type.Amount,
+                    color = Dewey.colors.ink,
+                    modifier = Modifier.padding(start = Dewey.spacing.row),
+                )
+            }
+        }
+
+        // The filename last and faint: it is provenance, not identity. Somebody
+        // scanning for what they owe should reach the number first.
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = document.displayName,
+            style = Dewey.type.Mono,
+            color = Dewey.colors.inkFaint,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 @Composable
@@ -129,7 +199,7 @@ private fun EmptyBills() {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFFAF7F2, heightDp = 780, widthDp = 390)
+@Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 780, widthDp = 390)
 @Composable
 private fun BillsPreview() {
     val today = LocalDate.of(2026, 9, 6)
@@ -165,7 +235,7 @@ private fun BillsPreview() {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFFAF7F2, heightDp = 780, widthDp = 390)
+@Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 780, widthDp = 390)
 @Composable
 private fun BillsEmptyPreview() {
     DeweyTheme {
