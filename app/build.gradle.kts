@@ -70,6 +70,23 @@ val revenueCatProperties = Properties().apply {
 }
 val revenueCatKey: String = revenueCatProperties.getProperty("apiKey").orEmpty()
 
+/**
+ * Whether that key is a Test Store one.
+ *
+ * RevenueCat refuses to run a Test Store key in a build the system does not
+ * consider debuggable — it checks ApplicationInfo.FLAG_DEBUGGABLE — and puts an
+ * error dialog over the app when it finds one. That is the right rule: a test
+ * key simulates purchases and earns nothing, so shipping one to a store would
+ * be a broken product.
+ *
+ * This entry is never going to a store; it is judged on a repo and a video. So
+ * the presence of a test key is taken as what it plainly is — a statement that
+ * this build is a demonstration — and the release variant is marked debuggable
+ * to match. Supply a real store key, or none, and the release build is an
+ * ordinary non-debuggable release again.
+ */
+val hasTestStoreKey = revenueCatKey.startsWith("test_")
+
 val keystoreProperties = Properties().apply {
     val file = rootProject.file("keystore.properties")
     if (file.exists()) file.inputStream().use { load(it) }
@@ -88,7 +105,6 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "REVENUECAT_KEY", "\"$revenueCatKey\"")
     }
 
     signingConfigs {
@@ -123,7 +139,49 @@ android {
     }
 
     buildTypes {
+        /**
+         * The build the demo video is shot on, and the one worth installing on
+         * a phone to try.
+         *
+         * It exists because RevenueCat will not run a Test Store key in a build
+         * the system does not consider debuggable — it checks
+         * ApplicationInfo.FLAG_DEBUGGABLE — and puts an error dialog over the
+         * app when it finds one. That rule is right: a test key simulates
+         * purchases and earns nothing, so shipping one would be a broken
+         * product. Marking `release` debuggable to satisfy it was the first
+         * attempt and the wrong one — AGP then disables R8 entirely, which
+         * throws away the minified build the whole release path was verified
+         * against.
+         *
+         * So the two are kept apart. `release` is a real release: minified,
+         * not debuggable, and carrying no purchase key at all, which is the
+         * strongest possible guarantee that a test key cannot reach a store.
+         * `demo` is signed with the same key and installs the same way, and is
+         * honest about being a demonstration.
+         */
+        create("demo") {
+            initWith(getByName("release"))
+            isDebuggable = true
+            // Would be ignored anyway: AGP disables optimisation for debuggable
+            // builds. Stated rather than left to be discovered from a warning.
+            isMinifyEnabled = false
+            isShrinkResources = false
+            matchingFallbacks += listOf("release")
+            buildConfigField("String", "REVENUECAT_KEY", "\"$revenueCatKey\"")
+
+            // Set here rather than inherited: initWith() copies the release
+            // block as it stands at this point in the script, and the release
+            // block has not run yet, so its signingConfig is still null. An
+            // unsigned APK cannot be installed, which is the one thing this
+            // variant exists to be.
+            if (hasSigningCredentials) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+
         release {
+            // Deliberately empty. See the demo build type above.
+            buildConfigField("String", "REVENUECAT_KEY", "\"\"")
             if (hasSigningCredentials) {
                 signingConfig = signingConfigs.getByName("release")
             } else {

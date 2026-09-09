@@ -95,14 +95,32 @@ class Entitlements(private val context: Context) {
         private const val TAG = "Entitlements"
 
         /**
-         * The entitlement identifier configured in the RevenueCat dashboard.
-         * Must match exactly, or every customer reads as unentitled.
+         * The entitlement identifier as configured in the RevenueCat dashboard.
+         *
+         * Must match it character for character. It does not have to match
+         * anything in this codebase, and deliberately does not match the name
+         * the product goes by in the README — a mismatch here is silent, and
+         * looks exactly like a purchase that succeeded and gave nothing, so it
+         * is worth being the one string that is copied rather than invented.
+         * [hasLibrarian] logs what the account actually grants for that reason.
          */
-        const val LIBRARIAN = "librarian"
+        const val LIBRARIAN = "dewey_app_pro"
 
         val isConfigured: Boolean get() = BuildConfig.REVENUECAT_KEY.isNotBlank()
 
-        private fun CustomerInfo.hasLibrarian(): Boolean =
-            entitlements[LIBRARIAN]?.isActive == true
+        private fun CustomerInfo.hasLibrarian(): Boolean {
+            val active = entitlements.active.keys
+            // Logged because the failure it catches is silent and lives in a
+            // dashboard rather than in this repo: a purchase can succeed while
+            // granting nothing, if the product was never attached to an
+            // entitlement or the identifier does not match LIBRARIAN exactly.
+            // From the outside that is indistinguishable from a broken app.
+            Log.i(
+                TAG,
+                "entitlements: active=$active all=${entitlements.all.keys} " +
+                    "subscriptions=$activeSubscriptions",
+            )
+            return entitlements[LIBRARIAN]?.isActive == true
+        }
     }
 }
