@@ -7,6 +7,7 @@ import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import app.dewey.io.copyBounded
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -18,8 +19,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
 import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -187,25 +186,5 @@ class OcrTextExtractor(
          */
         const val MAX_SPOOL_BYTES = 40L * 1024 * 1024
 
-        /**
-         * Copies at most [limit] bytes, returning false if the source held more.
-         *
-         * Pure enough to test on the JVM, which is the point: the interesting
-         * case is the one a device test will not produce on demand, a document
-         * bigger than the cache should hold. A file exactly at the limit is
-         * copied — the limit is what fits, not what is too much.
-         */
-        fun copyBounded(input: InputStream, output: OutputStream, limit: Long): Boolean {
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            var written = 0L
-
-            while (true) {
-                val read = input.read(buffer)
-                if (read < 0) return true
-                written += read
-                if (written > limit) return false
-                output.write(buffer, 0, read)
-            }
-        }
     }
 }

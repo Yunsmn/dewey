@@ -1,4 +1,4 @@
-package app.dewey.index
+package app.dewey.io
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -6,15 +6,16 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 
 /**
- * The bound on the copy OcrTextExtractor makes when a provider hands back a
- * descriptor PdfRenderer cannot seek. Without it, a scanned book would be
- * written into the app's cache in full before anyone noticed.
+ * The bound on a spooled copy. Two callers rely on it — OCR, when a provider
+ * hands back a descriptor PdfRenderer cannot seek, and the PDF raster tools,
+ * for the same reason. Without it a scanned book is written into the app's
+ * cache in full before anyone notices.
  */
-class OcrCopyBoundTest {
+class BoundedCopyTest {
 
     private fun copy(sourceBytes: Int, limit: Long): Pair<Boolean, Int> {
         val output = ByteArrayOutputStream()
-        val copied = OcrTextExtractor.copyBounded(
+        val copied = copyBounded(
             ByteArrayInputStream(ByteArray(sourceBytes) { 7 }),
             output,
             limit,
