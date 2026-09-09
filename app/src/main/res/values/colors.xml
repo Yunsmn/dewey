@@ -1,3 +1,6 @@
 <resources>
-    <color name="ic_launcher_background">#1B4332</color>
+    <!-- The accent from DeweyColors. The launcher icon and the in-app mark are
+         the same blue square deliberately: one is how you find the app, the
+         other is how you know you are in it. -->
+    <color name="ic_launcher_background">#2563EB</color>
 </resources>

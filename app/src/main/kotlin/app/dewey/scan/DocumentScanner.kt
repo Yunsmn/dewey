@@ -18,7 +18,11 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
  * That is a deliberate trade: it runs in its own process, so the app needs no
  * CAMERA permission and cannot leak a camera session, and its corner detection
  * is better than anything worth writing here. The cost is a dependency on Play
- * Services, which is why [isAvailable] exists and callers must handle absence.
+ * Services. There is deliberately no isAvailable() to call first: the module
+ * can be absent, present, or downloadable-on-demand, and the only way to learn
+ * which is to ask for the scanner and see. So [intentSender] failing is the
+ * absence signal, and callers must handle it — see app.dewey.ui.scan.ScanEngine,
+ * which treats any failure there as "not available on this device".
  */
 class DocumentScanner(private val context: Context) {
 
