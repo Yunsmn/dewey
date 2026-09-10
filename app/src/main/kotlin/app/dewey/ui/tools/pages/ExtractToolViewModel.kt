@@ -1,5 +1,6 @@
 package app.dewey.ui.tools.pages
 
+import app.dewey.ui.tools.readPageCount
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider

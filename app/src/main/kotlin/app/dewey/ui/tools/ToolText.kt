@@ -68,15 +68,22 @@ fun derivedFileName(sourceName: String, suffix: String, extension: String = "pdf
     return "$stem-$suffix.$extension"
 }
 
-/** A size a person reads, not a byte count. 0 means unknown and says so. */
+/**
+ * A size a person reads, not a byte count. 0 means unknown and says so.
+ *
+ * Decimal units, deliberately. Android's own file manager shows sizes in
+ * thousands — the system picker lists a file as "549 kB" — and this used to
+ * divide by 1024, so the very same file read "536 KB" one tap later inside the
+ * app. Two different numbers for one file, seconds apart, reads as a mistake.
+ */
 fun formatBytes(bytes: Long): String = when {
     bytes <= 0 -> "size unknown"
     bytes < KB -> "$bytes B"
-    bytes < MB -> "${(bytes + KB / 2) / KB} KB"
+    bytes < MB -> "${(bytes + KB / 2) / KB} kB"
     else -> "%.1f MB".format(bytes.toDouble() / MB)
 }
 
 private fun pageWord(count: Int) = if (count == 1) "1 page" else "$count pages"
 
-private const val KB = 1024L
-private const val MB = 1024L * 1024L
+private const val KB = 1000L
+private const val MB = 1000L * 1000L

@@ -79,7 +79,13 @@ class ToolTextTest {
         Locale.setDefault(Locale.US)
         assertThat(formatBytes(0)).isEqualTo("size unknown")
         assertThat(formatBytes(512)).isEqualTo("512 B")
-        assertThat(formatBytes(2048)).isEqualTo("2 KB")
-        assertThat(formatBytes(5L * 1024 * 1024 + 512 * 1024)).isEqualTo("5.5 MB")
+        assertThat(formatBytes(5_500_000)).isEqualTo("5.5 MB")
+    }
+
+    @Test
+    fun `a file is the same size here as in the system picker`() {
+        // The real file that exposed this: 548,961 bytes, listed by Android's
+        // picker as "549 kB" and, before the fix, by this app as "536 KB".
+        assertThat(formatBytes(548_961)).isEqualTo("549 kB")
     }
 }

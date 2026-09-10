@@ -1,5 +1,6 @@
 package app.dewey.ui.tools.pages
 
+import app.dewey.ui.tools.ToolTextField
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -59,7 +60,7 @@ private fun ExtractToolContent(
         if (state.file != null) {
             FieldLabel("Pages to extract")
             PageCountHint(state.pageCount)
-            PageRangeField(
+            ToolTextField(
                 value = state.rangeText,
                 onValueChange = onRangeChanged,
                 placeholder = "e.g. 1-3, 7",

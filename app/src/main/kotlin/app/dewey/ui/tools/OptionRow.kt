@@ -1,4 +1,4 @@
-package app.dewey.ui.tools.raster
+package app.dewey.ui.tools
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,14 +16,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import app.dewey.pdf.RasterQuality
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
 
 /**
- * A row of words to pick exactly one from — quality presets, export format —
- * rather than a slider or a dropdown. There are never more than three
- * options for anything this renders, so a row of taps beats a menu.
+ * A row of words to pick exactly one from — quality presets, export format,
+ * watermark opacity — rather than a slider or a dropdown. There are never more
+ * than three options for anything this renders, so a row of taps beats a menu.
+ *
+ * Lives in the shared layer, not with any one tool. It started in the raster
+ * tools, and the protect and mark screens then imported it from there, which
+ * made one tool package depend on another for a widget that has nothing to do
+ * with either.
  */
 @Composable
 fun <T> OptionRow(
@@ -70,9 +74,9 @@ private val PILL_CORNER = 999.dp
 private fun OptionRowPreview() {
     DeweyTheme {
         OptionRow(
-            options = RasterQuality.entries,
-            selected = RasterQuality.BALANCED,
-            label = RasterQuality::label,
+            options = listOf("Small", "Balanced", "Sharp"),
+            selected = "Balanced",
+            label = { it },
             onSelected = {},
             modifier = Modifier.padding(20.dp),
         )

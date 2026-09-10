@@ -1,5 +1,6 @@
 package app.dewey.ui.tools.raster
 
+import app.dewey.ui.tools.OptionRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row

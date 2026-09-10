@@ -1,6 +1,5 @@
-package app.dewey.ui.tools.raster
+package app.dewey.ui.tools.secure
 
-import app.dewey.ui.tools.OptionRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
@@ -10,7 +9,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.dewey.pdf.PdfToolkit
-import app.dewey.pdf.RasterQuality
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
@@ -22,19 +20,18 @@ import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
 
 @Composable
-fun CompressToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
-    val viewModel: CompressViewModel = viewModel(factory = CompressViewModel.factory(toolkit))
+fun UnlockToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
+    val viewModel: UnlockViewModel = viewModel(factory = UnlockViewModel.factory(toolkit))
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     val pickSource = rememberPdfPicker(onPicked = viewModel::onSourcePicked)
     val saveAs = rememberSaveAs(onCreated = viewModel::onDestinationChosen)
 
-    CompressContent(
+    UnlockContent(
         state = state,
         onPickSource = pickSource,
-        onQualityChosen = viewModel::onQualityChosen,
-        // As with the other raster tools, running means opening the save
-        // picker first; the compress itself starts from onDestinationChosen.
+        onPasswordChanged = viewModel::onPasswordChanged,
+        onPasswordVisibilityToggled = viewModel::onPasswordVisibilityToggled,
         onRun = { saveAs(state.suggestedFileName) },
         onReset = viewModel::reset,
         modifier = modifier,
@@ -42,47 +39,50 @@ fun CompressToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CompressContent(
-    state: CompressUiState,
+private fun UnlockContent(
+    state: UnlockUiState,
     onPickSource: () -> Unit,
-    onQualityChosen: (RasterQuality) -> Unit,
+    onPasswordChanged: (String) -> Unit,
+    onPasswordVisibilityToggled: () -> Unit,
     onRun: () -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     ToolScaffold(
-        title = "Compress",
-        description = "Shrink a scanned PDF by redrawing its pages at a lower resolution. Works best on " +
-            "documents that are mostly photographed pages rather than typed text.",
+        title = "Unlock",
+        description = "Remove a PDF's password, given the password itself. This isn't a recovery tool — the " +
+            "right password is still required.",
         state = state.run,
-        runLabel = "Compress and save",
+        runLabel = "Unlock and save",
         canRun = state.canRun,
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.source, prompt = "Choose a PDF", onPick = onPickSource)
+        FileSlot(file = state.source, prompt = "Choose a protected PDF", onPick = onPickSource)
 
         Spacer(Modifier.height(Dewey.spacing.row))
-        FieldLabel("Quality")
-        OptionRow(
-            options = RasterQuality.entries,
-            selected = state.quality,
-            label = RasterQuality::label,
-            onSelected = onQualityChosen,
+        FieldLabel("Password")
+        PasswordField(
+            value = state.password,
+            onValueChange = onPasswordChanged,
+            placeholder = "The document's password",
+            visible = state.passwordVisible,
+            onToggleVisible = onPasswordVisibilityToggled,
         )
     }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 700, widthDp = 390)
 @Composable
-private fun CompressPreview() {
+private fun UnlockPreview() {
     DeweyTheme {
-        CompressContent(
-            state = CompressUiState(source = PickedFile(android.net.Uri.EMPTY, "scanned-book.pdf", 18_400_000)),
+        UnlockContent(
+            state = UnlockUiState(source = PickedFile(android.net.Uri.EMPTY, "statement.pdf", 240_000)),
             onPickSource = {},
-            onQualityChosen = {},
+            onPasswordChanged = {},
+            onPasswordVisibilityToggled = {},
             onRun = {},
             onReset = {},
         )
@@ -91,15 +91,17 @@ private fun CompressPreview() {
 
 @Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 700, widthDp = 390)
 @Composable
-private fun CompressLargerPreview() {
+private fun UnlockWrongPasswordPreview() {
     DeweyTheme {
-        CompressContent(
-            state = CompressUiState(
-                source = PickedFile(android.net.Uri.EMPTY, "contract.pdf", 240_000),
-                run = ToolRunState.Done("The result came out larger than the original — this PDF is probably already compact."),
+        UnlockContent(
+            state = UnlockUiState(
+                source = PickedFile(android.net.Uri.EMPTY, "statement.pdf", 240_000),
+                password = "guess123",
+                run = ToolRunState.Failed("That password doesn't open this PDF."),
             ),
             onPickSource = {},
-            onQualityChosen = {},
+            onPasswordChanged = {},
+            onPasswordVisibilityToggled = {},
             onRun = {},
             onReset = {},
         )

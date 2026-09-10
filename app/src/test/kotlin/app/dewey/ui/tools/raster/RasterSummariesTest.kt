@@ -67,7 +67,7 @@ class RasterSummariesTest {
         Locale.setDefault(Locale.US)
         val result = CompressionResult(originalBytes = 1_000_000, resultBytes = 750_000)
 
-        assertThat(compressionSummary(result)).isEqualTo("Saved 244 KB (25% smaller).")
+        assertThat(compressionSummary(result)).isEqualTo("Saved 250 kB (25% smaller).")
     }
 
     @Test

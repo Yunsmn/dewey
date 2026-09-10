@@ -36,6 +36,8 @@ import app.dewey.ui.components.BottomNav
 import app.dewey.ui.components.NavDestination
 import app.dewey.ui.search.SearchViewModel
 import app.dewey.ui.theme.Dewey
+import app.dewey.ui.tools.ToolDestination
+import app.dewey.ui.tools.ToolScreen
 import app.dewey.ui.tools.ToolsHubScreen
 
 private object Routes {
@@ -104,6 +106,13 @@ fun DeweyApp(container: AppContainer) {
             }
             composable(Routes.TOOLS) {
                 ToolsHubScreen(onOpen = { tool -> navController.navigate(tool.route) })
+            }
+            // One destination per tool, generated from the same enum the hub
+            // lists, so the two cannot disagree about what exists.
+            for (tool in ToolDestination.entries) {
+                composable(tool.route) {
+                    ToolScreen(tool = tool, toolkit = container.pdfToolkit)
+                }
             }
             composable(Routes.BILLS) {
                 val model: BillsViewModel = viewModel(factory = BillsViewModel.factory(container))

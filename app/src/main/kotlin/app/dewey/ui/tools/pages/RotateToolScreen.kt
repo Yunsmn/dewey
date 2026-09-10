@@ -1,5 +1,6 @@
 package app.dewey.ui.tools.pages
 
+import app.dewey.ui.tools.ToolTextField
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -76,7 +77,7 @@ private fun RotateToolContent(
         if (state.file != null) {
             FieldLabel("Pages to rotate")
             PageCountHint(state.pageCount)
-            PageRangeField(
+            ToolTextField(
                 value = state.rangeText,
                 onValueChange = onRangeChanged,
                 placeholder = "e.g. 1-3, 7 — blank means every page",

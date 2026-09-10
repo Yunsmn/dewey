@@ -1,5 +1,6 @@
 package app.dewey.ui.tools.pages
 
+import app.dewey.ui.tools.ToolTextField
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -68,7 +69,7 @@ private fun ReorderToolContent(
             Row(horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.gutter)) {
                 Column(modifier = Modifier.weight(1f)) {
                     FieldLabel("Move page")
-                    PageRangeField(
+                    ToolTextField(
                         value = state.fromText,
                         onValueChange = onFromChanged,
                         placeholder = "e.g. 5",
@@ -77,7 +78,7 @@ private fun ReorderToolContent(
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     FieldLabel("To position")
-                    PageRangeField(
+                    ToolTextField(
                         value = state.toText,
                         onValueChange = onToChanged,
                         placeholder = "e.g. 1",

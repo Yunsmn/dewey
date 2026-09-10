@@ -1,5 +1,6 @@
-package app.dewey.ui.tools.raster
+package app.dewey.ui.tools.secure
 
+import app.dewey.ui.tools.ToolTextField
 import app.dewey.ui.tools.OptionRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -10,31 +11,29 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.dewey.pdf.PdfToolkit
-import app.dewey.pdf.RasterQuality
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
 import app.dewey.ui.tools.PickedFile
-import app.dewey.ui.tools.ToolRunState
 import app.dewey.ui.tools.ToolScaffold
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
 
 @Composable
-fun CompressToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
-    val viewModel: CompressViewModel = viewModel(factory = CompressViewModel.factory(toolkit))
+fun WatermarkToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
+    val viewModel: WatermarkViewModel = viewModel(factory = WatermarkViewModel.factory(toolkit))
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     val pickSource = rememberPdfPicker(onPicked = viewModel::onSourcePicked)
     val saveAs = rememberSaveAs(onCreated = viewModel::onDestinationChosen)
 
-    CompressContent(
+    WatermarkContent(
         state = state,
         onPickSource = pickSource,
-        onQualityChosen = viewModel::onQualityChosen,
-        // As with the other raster tools, running means opening the save
-        // picker first; the compress itself starts from onDestinationChosen.
+        onTextChanged = viewModel::onTextChanged,
+        onOpacityChosen = viewModel::onOpacityChosen,
+        onAngleChosen = viewModel::onAngleChosen,
         onRun = { saveAs(state.suggestedFileName) },
         onReset = viewModel::reset,
         modifier = modifier,
@@ -42,20 +41,21 @@ fun CompressToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CompressContent(
-    state: CompressUiState,
+private fun WatermarkContent(
+    state: WatermarkUiState,
     onPickSource: () -> Unit,
-    onQualityChosen: (RasterQuality) -> Unit,
+    onTextChanged: (String) -> Unit,
+    onOpacityChosen: (WatermarkOpacity) -> Unit,
+    onAngleChosen: (WatermarkAngle) -> Unit,
     onRun: () -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     ToolScaffold(
-        title = "Compress",
-        description = "Shrink a scanned PDF by redrawing its pages at a lower resolution. Works best on " +
-            "documents that are mostly photographed pages rather than typed text.",
+        title = "Watermark",
+        description = "Stamp a line of text across every page, faint enough that the page stays legible underneath it.",
         state = state.run,
-        runLabel = "Compress and save",
+        runLabel = "Watermark and save",
         canRun = state.canRun,
         onRun = onRun,
         onReset = onReset,
@@ -65,41 +65,46 @@ private fun CompressContent(
         FileSlot(file = state.source, prompt = "Choose a PDF", onPick = onPickSource)
 
         Spacer(Modifier.height(Dewey.spacing.row))
-        FieldLabel("Quality")
+        FieldLabel("Watermark text")
+        ToolTextField(
+            value = state.text,
+            onValueChange = onTextChanged,
+            placeholder = "e.g. CONFIDENTIAL",
+        )
+
+        Spacer(Modifier.height(Dewey.spacing.row))
+        FieldLabel("Opacity")
         OptionRow(
-            options = RasterQuality.entries,
-            selected = state.quality,
-            label = RasterQuality::label,
-            onSelected = onQualityChosen,
+            options = WatermarkOpacity.entries,
+            selected = state.opacity,
+            label = { it.label },
+            onSelected = onOpacityChosen,
+        )
+
+        Spacer(Modifier.height(Dewey.spacing.row))
+        FieldLabel("Angle")
+        OptionRow(
+            options = WatermarkAngle.entries,
+            selected = state.angle,
+            label = { it.label },
+            onSelected = onAngleChosen,
         )
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 700, widthDp = 390)
+@Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 780, widthDp = 390)
 @Composable
-private fun CompressPreview() {
+private fun WatermarkPreview() {
     DeweyTheme {
-        CompressContent(
-            state = CompressUiState(source = PickedFile(android.net.Uri.EMPTY, "scanned-book.pdf", 18_400_000)),
-            onPickSource = {},
-            onQualityChosen = {},
-            onRun = {},
-            onReset = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 700, widthDp = 390)
-@Composable
-private fun CompressLargerPreview() {
-    DeweyTheme {
-        CompressContent(
-            state = CompressUiState(
+        WatermarkContent(
+            state = WatermarkUiState(
                 source = PickedFile(android.net.Uri.EMPTY, "contract.pdf", 240_000),
-                run = ToolRunState.Done("The result came out larger than the original — this PDF is probably already compact."),
+                text = "DRAFT",
             ),
             onPickSource = {},
-            onQualityChosen = {},
+            onTextChanged = {},
+            onOpacityChosen = {},
+            onAngleChosen = {},
             onRun = {},
             onReset = {},
         )

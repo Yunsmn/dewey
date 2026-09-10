@@ -1,4 +1,4 @@
-package app.dewey.ui.tools.pages
+package app.dewey.ui.tools
 
 import app.dewey.pdf.PdfToolkit
 import app.dewey.ui.tools.PickedFile
