@@ -22,6 +22,9 @@ import app.dewey.sort.DocumentMover
 import app.dewey.sort.UndoLog
 import app.dewey.index.PdfTextExtractor
 import app.dewey.index.DocumentSearch
+import app.dewey.pdf.PdfToolkit
+import app.dewey.pdf.PdfWorkspace
+import app.dewey.pdf.RasterTools
 import app.dewey.work.TaskNotifications
 import app.dewey.work.TaskRunner
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
@@ -96,6 +99,17 @@ class AppContainer(private val context: Context) {
 
     /** Whether the paid tier is available — see [app.dewey.billing.Entitlements]. */
     val entitlements: Entitlements by lazy { Entitlements(context) }
+
+    /** The PDF tools' shared dependencies — see [PdfToolkit]. */
+    val pdfToolkit: PdfToolkit by lazy {
+        val workspace = PdfWorkspace(context.contentResolver, context.cacheDir)
+        PdfToolkit(
+            resolver = context.contentResolver,
+            cacheDir = context.cacheDir,
+            workspace = workspace,
+            raster = RasterTools(context.contentResolver, workspace, context.cacheDir),
+        )
+    }
 
     /**
      * Overridable so instrumentation tests can index without loading a 118MB

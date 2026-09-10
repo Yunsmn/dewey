@@ -79,6 +79,51 @@ class PdfWorkspace(
             }
         }
 
+    /**
+     * Opens every document in [sources] and hands them to [block] together,
+     * closing all of them afterwards whatever happens.
+     *
+     * [read] cannot be nested to hold two documents open at once — its block
+     * is not a suspend function — and merging needs exactly that. Documents
+     * open in order; the first that fails ends the call, after closing the
+     * ones already open. The size limit applies to the total, since every one
+     * of them is open at the same moment.
+     *
+     * @param sources each document's URI with its size in bytes, 0 if unknown.
+     */
+    suspend fun <T> readAll(sources: List<Pair<Uri, Long>>, block: (List<PDDocument>) -> T): Result<T> =
+        withContext(io) {
+            if (sources.sumOf { it.second } > maxBytes) {
+                return@withContext Result.failure(
+                    PdfToolException(Failure.TooLarge("${sources.size} documents together"))
+                )
+            }
+            // Streams stay open for as long as their documents do, exactly as
+            // read() keeps its stream open around its document's whole life.
+            val streams = mutableListOf<java.io.InputStream>()
+            val documents = mutableListOf<PDDocument>()
+            try {
+                for ((uri, _) in sources) {
+                    val name = uri.lastPathSegment.orEmpty()
+                    val stream = resolver.openInputStream(uri)
+                        ?: return@withContext Result.failure(PdfToolException(Failure.Unreadable(name)))
+                    streams += stream
+                    val document = PDDocument.load(stream, memoryUsage())
+                    documents += document
+                    if (document.isEncrypted) {
+                        return@withContext Result.failure(PdfToolException(Failure.Encrypted(name)))
+                    }
+                }
+                Result.success(block(documents.toList()))
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not read one of ${sources.size} documents", e)
+                Result.failure(PdfToolException(Failure.Unreadable("one of ${sources.size} documents")))
+            } finally {
+                documents.forEach { runCatching { it.close() } }
+                streams.forEach { runCatching { it.close() } }
+            }
+        }
+
     /** Writes [document] to [target]. The caller owns closing [document]. */
     suspend fun write(document: PDDocument, target: Uri): Result<Unit> = withContext(io) {
         try {
