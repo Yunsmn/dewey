@@ -8,36 +8,51 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 
 /**
- * A real pairing: serif for what you read, sans for what you scan.
+ * One family, held together by weight rather than by mixing a serif in.
  *
- * Headings and document titles are serif, because they are the content. Metadata
- * — sizes, counts, filenames, amounts — is sans, because it is scanned rather
- * than read. The contrast between the two is what gives the list hierarchy
- * without needing boxes or colour to create it.
+ * The catalogue voice this app started with — serif titles against sans
+ * metadata — read as quiet and a little cold once the rest of the interface
+ * turned soft and colourful with icon tiles and washes of hue. A single
+ * friendly sans, semibold where something needs to anchor the eye and regular
+ * where it's read in passing, matches that warmth without needing a second
+ * typeface to justify itself. Hierarchy now comes from size and weight,
+ * the same way the icon tiles carry meaning through colour rather than shape.
  *
- * Both families are on every Android device, so this costs no download, no font
+ * Every style is on the system font, so this still costs no download, no
  * loading state and no layout shift.
  */
 object DeweyType {
 
-    private val Serif = FontFamily.Serif
     private val Sans = FontFamily.SansSerif
 
     /** Screen titles. Large enough to be the anchor of the page. */
     val Display = TextStyle(
-        fontFamily = Serif,
-        fontWeight = FontWeight.Normal,
-        fontSize = 34.sp,
-        lineHeight = 40.sp,
-        letterSpacing = (-0.5).sp,
+        fontFamily = Sans,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 30.sp,
+        lineHeight = 36.sp,
+        letterSpacing = (-0.3).sp,
+    )
+
+    /**
+     * Between [Display] and [Title]: a tool screen's own heading beside its
+     * large icon tile, where [Display] would crowd the tile and [Title] would
+     * read as a mere section break rather than the page's subject.
+     */
+    val Headline = TextStyle(
+        fontFamily = Sans,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 22.sp,
+        lineHeight = 27.sp,
+        letterSpacing = (-0.2).sp,
     )
 
     /** Section headings, and the title of a document. */
     val Title = TextStyle(
-        fontFamily = Serif,
-        fontWeight = FontWeight.Medium,
-        fontSize = 19.sp,
-        lineHeight = 25.sp,
+        fontFamily = Sans,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 17.sp,
+        lineHeight = 23.sp,
     )
 
     /** Body copy: summaries, snippets, explanations. */
@@ -57,15 +72,16 @@ object DeweyType {
     )
 
     /**
-     * Section rules and category labels. Letterspaced small caps — the one
-     * typographic flourish, and what makes the screen read as a catalogue.
+     * A field or section label, set in sentence case rather than shouted in
+     * small caps. Weight carries the emphasis a wide letter-spaced label used
+     * to carry, so a form still reads as organised without reading as a filing
+     * cabinet.
      */
     val Label = TextStyle(
         fontFamily = Sans,
-        fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,
-        lineHeight = 14.sp,
-        letterSpacing = 1.2.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 13.sp,
+        lineHeight = 17.sp,
     )
 
     /**
@@ -84,15 +100,14 @@ object DeweyType {
     )
 
     /**
-     * Tab labels and chips. Smaller than [Label] and without its letterspacing,
-     * because at 10sp tracking stops reading as deliberate and starts reading
-     * as a rendering fault.
+     * Tab labels and chips. Smaller than [Label] and without its weight, so a
+     * bottom nav label sits quietly under its icon.
      */
     val Micro = TextStyle(
         fontFamily = Sans,
         fontWeight = FontWeight.Medium,
-        fontSize = 10.sp,
-        lineHeight = 12.sp,
+        fontSize = 11.sp,
+        lineHeight = 14.sp,
     )
 
     /**
@@ -108,7 +123,7 @@ object DeweyType {
 
     val Button = TextStyle(
         fontFamily = Sans,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 15.sp,
         lineHeight = 20.sp,
         textAlign = TextAlign.Center,
@@ -117,7 +132,7 @@ object DeweyType {
     /** Material's own components read from this; ours read the styles above. */
     val material = Typography(
         displayLarge = Display,
-        headlineMedium = Title,
+        headlineMedium = Headline,
         titleMedium = Title,
         bodyLarge = Body,
         bodyMedium = Body,

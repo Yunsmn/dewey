@@ -36,6 +36,7 @@ fun ToolScreen(tool: ToolDestination, toolkit: PdfToolkit) {
                 factory = ScanViewModel.factory(
                     scanner = DocumentScanner(context),
                     resolver = context.contentResolver,
+                    onSaved = { toolkit.recordScan(it) },
                 ),
             )
             ScanScreen(viewModel = model)

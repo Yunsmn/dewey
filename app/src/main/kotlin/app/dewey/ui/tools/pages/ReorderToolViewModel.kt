@@ -65,7 +65,7 @@ class ReorderToolViewModel(private val toolkit: PdfToolkit) : ViewModel() {
                     onSuccess = { saveOpenDocument(document, toolkit.resolver, target) },
                     onFailure = { Result.failure(it) },
                 )
-            }.flatten().onFailure { toolkit.discardOutput(target) }
+            }.flatten().onFailure { toolkit.discardOutput(target) }.onSuccess { toolkit.recordOutput(target) }
 
             _state.value = _state.value.copy(
                 runState = result.fold(

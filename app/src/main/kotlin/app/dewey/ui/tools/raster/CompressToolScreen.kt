@@ -16,8 +16,10 @@ import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
 import app.dewey.ui.tools.PickedFile
+import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolRunState
 import app.dewey.ui.tools.ToolScaffold
+import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
 
@@ -60,9 +62,11 @@ private fun CompressContent(
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
+        hue = ToolDestination.COMPRESS.group.hue,
+        icon = ToolDestination.COMPRESS.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.source, prompt = "Choose a PDF", onPick = onPickSource)
+        FileSlot(file = state.source, prompt = "Choose a PDF", onPick = onPickSource, hue = ToolDestination.COMPRESS.group.hue)
 
         Spacer(Modifier.height(Dewey.spacing.row))
         FieldLabel("Quality")
@@ -71,6 +75,7 @@ private fun CompressContent(
             selected = state.quality,
             label = RasterQuality::label,
             onSelected = onQualityChosen,
+            hue = ToolDestination.COMPRESS.group.hue,
         )
     }
 }

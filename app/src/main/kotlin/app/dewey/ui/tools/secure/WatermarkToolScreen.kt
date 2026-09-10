@@ -16,7 +16,9 @@ import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
 import app.dewey.ui.tools.PickedFile
+import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolScaffold
+import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
 
@@ -60,9 +62,11 @@ private fun WatermarkContent(
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
+        hue = ToolDestination.WATERMARK.group.hue,
+        icon = ToolDestination.WATERMARK.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.source, prompt = "Choose a PDF", onPick = onPickSource)
+        FileSlot(file = state.source, prompt = "Choose a PDF", onPick = onPickSource, hue = ToolDestination.WATERMARK.group.hue)
 
         Spacer(Modifier.height(Dewey.spacing.row))
         FieldLabel("Watermark text")
@@ -70,6 +74,7 @@ private fun WatermarkContent(
             value = state.text,
             onValueChange = onTextChanged,
             placeholder = "e.g. CONFIDENTIAL",
+            hue = ToolDestination.WATERMARK.group.hue,
         )
 
         Spacer(Modifier.height(Dewey.spacing.row))
@@ -79,6 +84,7 @@ private fun WatermarkContent(
             selected = state.opacity,
             label = { it.label },
             onSelected = onOpacityChosen,
+            hue = ToolDestination.WATERMARK.group.hue,
         )
 
         Spacer(Modifier.height(Dewey.spacing.row))
@@ -88,6 +94,7 @@ private fun WatermarkContent(
             selected = state.angle,
             label = { it.label },
             onSelected = onAngleChosen,
+            hue = ToolDestination.WATERMARK.group.hue,
         )
     }
 }

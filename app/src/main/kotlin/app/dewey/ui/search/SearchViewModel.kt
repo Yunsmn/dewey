@@ -19,6 +19,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 
+/**
+ * Chunks belonging to the same document collapse to its strongest passage,
+ * ranked best first.
+ *
+ * A top-level function rather than a private detail of [SearchViewModel]:
+ * `app.dewey.ui.documents.AskViewModel` needs the identical collapse for its
+ * own retrieval, and a category's or a document's rank must never disagree
+ * between the two screens.
+ */
+internal fun bestPassagePerDocument(hits: List<DocumentSearch.Hit>): List<DocumentSearch.Hit> =
+    hits.groupBy { it.documentId }
+        .values
+        .map { group -> group.maxBy { it.score } }
+        .sortedByDescending { it.score }
+
 class SearchViewModel(
     private val repository: DocumentRepository,
     private val search: DocumentSearch,
@@ -74,14 +89,12 @@ class SearchViewModel(
 
             // Several chunks of one document can all match. The user wants the
             // document once, represented by its strongest passage.
-            val best = hits.groupBy { it.documentId }
-                .mapNotNull { (documentId, group) ->
-                    val strongest = group.maxBy { it.score }
-                    repository.byId(documentId)?.let { document ->
-                        SearchResult(document, strongest.text.trim(), strongest.score)
+            val best = bestPassagePerDocument(hits)
+                .mapNotNull { hit ->
+                    repository.byId(hit.documentId)?.let { document ->
+                        SearchResult(document, hit.text.trim(), hit.score)
                     }
                 }
-                .sortedByDescending { it.score }
                 .take(RESULT_LIMIT)
 
             _state.value = SearchUiState.Results(text, best)

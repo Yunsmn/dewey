@@ -59,7 +59,7 @@ class CompressViewModel(private val toolkit: PdfToolkit) : ViewModel() {
                 sizeBytes = source.sizeBytes,
                 targetUri = target,
                 quality = current.quality,
-            ).onFailure { toolkit.discardOutput(target) }
+            ).onFailure { toolkit.discardOutput(target) }.onSuccess { toolkit.recordOutput(target) }
 
             _state.value = _state.value.copy(
                 run = outcome.fold(

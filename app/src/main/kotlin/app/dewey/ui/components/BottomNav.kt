@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -32,9 +33,10 @@ import app.dewey.ui.theme.Dewey
  * The bar is drawn over the content rather than beside it, so every scrolling
  * screen owes it this much room at the bottom or the last row sits underneath
  * and cannot be read or tapped. Stated once here rather than guessed at three
- * times.
+ * times. Kept a little more generous than the bar's own height so a softer,
+ * more padded bar still clears the last row with room to spare.
  */
-val NavBarClearance = 104.dp
+val NavBarClearance = 112.dp
 
 /** One destination in [BottomNav]. */
 data class NavDestination(
@@ -62,23 +64,28 @@ fun BottomNav(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(22.dp)
+    val shape = RoundedCornerShape(Dewey.radii.large)
+    // Same light/dark split as GlassCard: a shadow lifts the bar off a light
+    // paper, but reads as a smudge on a dark ground, where a hairline border
+    // does the same job of catching the edge.
+    val isLight = Dewey.colors.paper.luminance() > 0.5f
+    val shadowColor = Dewey.colors.ink.copy(alpha = 0.16f)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            // Opaque, and a shadow to sit it above the page. Translucency was
-            // tried and is wrong here for a reason worth keeping: a card is
-            // translucent over a background that holds still, and what shows
-            // through reads as depth. A bar with a list scrolling underneath it
-            // shows filenames sliding through the tab labels, which reads as a
-            // fault rather than as glass. Compose cannot blur a backdrop below
-            // API 31, so opacity plus a shadow is the honest version.
-            .shadow(12.dp, shape, clip = false)
+            // Opaque regardless of theme. Translucency was tried and is wrong
+            // here for a reason worth keeping: a card is translucent over a
+            // background that holds still, and what shows through reads as
+            // depth. A bar with a list scrolling underneath it shows filenames
+            // sliding through the tab labels, which reads as a fault rather
+            // than as glass. Compose cannot blur a backdrop below API 31, so
+            // opacity plus a shadow or hairline is the honest version.
+            .shadow(if (isLight) 10.dp else 0.dp, shape, clip = false, ambientColor = shadowColor, spotColor = shadowColor)
             .clip(shape)
             .background(Dewey.colors.glassRaised)
-            .border(1.dp, Dewey.colors.glassBorder, shape)
-            .padding(6.dp),
+            .then(if (isLight) Modifier else Modifier.border(1.dp, Dewey.colors.glassBorder, shape))
+            .padding(8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -110,7 +117,7 @@ private fun NavItem(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(Dewey.radii.medium))
             .background(pill)
             .clickable(
                 // No ripple: it would splash outside the pill and across the
@@ -120,7 +127,7 @@ private fun NavItem(
                 role = Role.Tab,
                 onClick = onClick,
             )
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 18.dp, vertical = 10.dp),
     ) {
         Icon(
             imageVector = destination.icon,

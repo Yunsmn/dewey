@@ -10,10 +10,13 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,7 +49,9 @@ import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.HighlightOff
+import androidx.compose.material.icons.rounded.DocumentScanner
 import app.dewey.ui.components.GlassCard
+import app.dewey.ui.components.IconTile
 import app.dewey.ui.components.NavBarClearance
 import app.dewey.ui.components.PrimaryAction
 import app.dewey.ui.components.SecondaryAction
@@ -133,7 +138,10 @@ private fun ScanContent(
                     ),
                 ),
         ) {
-            Text("Scan", style = Dewey.type.Display, color = Dewey.colors.ink)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row)) {
+                IconTile(icon = Icons.Rounded.DocumentScanner, hue = Dewey.colors.hues.scan, size = 56.dp)
+                Text("Scan", style = Dewey.type.Headline, color = Dewey.colors.ink)
+            }
             Spacer(Modifier.height(Dewey.spacing.section))
 
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -226,12 +234,15 @@ private fun CaptureInvite(onScan: () -> Unit) {
  */
 @Composable
 private fun CaptureButton(onClick: () -> Unit) {
-    val interactions = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
             .size(112.dp)
-            .background(Dewey.colors.accent, CircleShape)
-            .clickable(interactionSource = interactions, indication = null, onClick = onClick),
+            // Clipped before the click so the ripple is a circle rather than
+            // the square the button sits in: the one control this screen
+            // exists for should visibly answer a press.
+            .clip(CircleShape)
+            .background(Dewey.colors.hues.scan.strong)
+            .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -264,7 +275,7 @@ private fun PreparingNotice() {
     }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        CircularProgressIndicator(color = Dewey.colors.accent)
+        CircularProgressIndicator(color = Dewey.colors.hues.scan.strong)
         Spacer(Modifier.height(Dewey.spacing.block))
         Text(
             text = "Getting the scanner ready",
@@ -296,7 +307,7 @@ private fun ScannedResult(onSave: () -> Unit, onScanAnother: () -> Unit) {
             Icon(
                 imageVector = Icons.Outlined.CheckCircleOutline,
                 contentDescription = null,
-                tint = Dewey.colors.accent,
+                tint = Dewey.colors.hues.scan.strong,
                 modifier = Modifier.size(40.dp),
             )
             Spacer(Modifier.height(Dewey.spacing.row))
@@ -331,7 +342,7 @@ private fun ScannedResult(onSave: () -> Unit, onScanAnother: () -> Unit) {
 @Composable
 private fun SavingNotice() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        CircularProgressIndicator(color = Dewey.colors.accent)
+        CircularProgressIndicator(color = Dewey.colors.hues.scan.strong)
         Spacer(Modifier.height(Dewey.spacing.block))
         Text(
             text = "Saving your scan",
@@ -349,7 +360,7 @@ private fun SavedNotice(onScanAnother: () -> Unit) {
         Icon(
             imageVector = Icons.Outlined.CheckCircleOutline,
             contentDescription = null,
-            tint = Dewey.colors.accent,
+            tint = Dewey.colors.hues.scan.strong,
             modifier = Modifier.size(40.dp),
         )
         Spacer(Modifier.height(Dewey.spacing.row))

@@ -78,7 +78,7 @@ class WatermarkViewModel(private val toolkit: PdfToolkit) : ViewModel() {
                 text = current.text.trim(),
                 opacity = current.opacity.value,
                 angleDegrees = current.angle.degrees,
-            ).onFailure { toolkit.discardOutput(target) }
+            ).onFailure { toolkit.discardOutput(target) }.onSuccess { toolkit.recordOutput(target) }
             _state.value = _state.value.afterRun(result, target)
         }
     }

@@ -1,28 +1,42 @@
 package app.dewey.ui.tools.raster
 
 import app.dewey.ui.tools.OptionRow
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.dewey.pdf.PdfToolkit
 import app.dewey.pdf.RasterImageFormat
 import app.dewey.pdf.RasterQuality
-import app.dewey.ui.components.GlassCard
+import app.dewey.ui.components.IconTile
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
 import app.dewey.ui.tools.PickedFile
+import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolRunState
 import app.dewey.ui.tools.ToolScaffold
+import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberFolderPicker
 import app.dewey.ui.tools.rememberPdfPicker
 
@@ -66,9 +80,11 @@ private fun PdfToImagesContent(
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
+        hue = ToolDestination.PDF_TO_IMAGES.group.hue,
+        icon = ToolDestination.PDF_TO_IMAGES.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.source, prompt = "Choose a PDF", onPick = onPickSource)
+        FileSlot(file = state.source, prompt = "Choose a PDF", onPick = onPickSource, hue = ToolDestination.PDF_TO_IMAGES.group.hue)
 
         Spacer(Modifier.height(Dewey.spacing.row))
         FieldLabel("Format")
@@ -77,6 +93,7 @@ private fun PdfToImagesContent(
             selected = state.format,
             label = RasterImageFormat::label,
             onSelected = onFormatChosen,
+            hue = ToolDestination.PDF_TO_IMAGES.group.hue,
         )
 
         Spacer(Modifier.height(Dewey.spacing.row))
@@ -86,6 +103,7 @@ private fun PdfToImagesContent(
             selected = state.quality,
             label = RasterQuality::label,
             onSelected = onQualityChosen,
+            hue = ToolDestination.PDF_TO_IMAGES.group.hue,
         )
 
         Spacer(Modifier.height(Dewey.spacing.row))
@@ -99,22 +117,37 @@ private fun PdfToImagesContent(
  * chosen through [app.dewey.ui.tools.rememberFolderPicker] has a name but no
  * meaningful single size to show beside it, so this drops that second line
  * rather than showing "size unknown" for something that was never a file.
+ * Same soft sunken slot as [FileSlot], just with a folder glyph.
  */
 @Composable
 private fun FolderSlot(folderName: String?, prompt: String, onPick: () -> Unit) {
-    GlassCard(modifier = Modifier.fillMaxWidth(), onClick = onPick) {
+    val hue = ToolDestination.PDF_TO_IMAGES.group.hue
+    val shape = RoundedCornerShape(Dewey.radii.medium)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Dewey.colors.paperSunken)
+            .clickable(onClick = onPick)
+            .padding(Dewey.spacing.gutter),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row),
+    ) {
+        IconTile(icon = Icons.Rounded.Folder, hue = hue, size = 40.dp)
         if (folderName == null) {
-            Text(prompt, style = Dewey.type.Body, color = Dewey.colors.accent)
+            Text(prompt, style = Dewey.type.Body, color = Dewey.colors.ink)
         } else {
-            Text(
-                text = folderName,
-                style = Dewey.type.Mono,
-                color = Dewey.colors.ink,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(Dewey.spacing.hairline))
-            Text("tap to change", style = Dewey.type.Meta, color = Dewey.colors.inkMuted)
+            Column {
+                Text(
+                    text = folderName,
+                    style = Dewey.type.Mono,
+                    color = Dewey.colors.ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(Dewey.spacing.hairline))
+                Text("tap to change", style = Dewey.type.Meta, color = Dewey.colors.inkMuted)
+            }
         }
     }
 }

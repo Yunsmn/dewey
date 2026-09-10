@@ -9,11 +9,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.PauseCircle
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -27,6 +36,10 @@ import app.dewey.work.TaskState
  * Named the current file deliberately. A bare percentage on a four-hundred-file
  * import reads as a frozen bar; a filename changing every second reads as
  * progress, and it is also the honest answer to "what is it doing right now".
+ *
+ * Every state now sits inside one rounded, softly tinted card rather than an
+ * edge-to-edge flat rectangle — the same shape language as [GlassCard], just
+ * always tinted since a banner is never neutral about what it's reporting.
  */
 @Composable
 fun TaskBanner(
@@ -40,6 +53,7 @@ fun TaskBanner(
         is TaskState.Running -> Column(
             modifier = modifier
                 .fillMaxWidth()
+                .clip(RoundedCornerShape(Dewey.radii.medium))
                 .background(Dewey.colors.accentSoft)
                 .padding(Dewey.spacing.row),
         ) {
@@ -76,6 +90,7 @@ fun TaskBanner(
         }
 
         is TaskState.Finished -> Banner(
+            icon = if (state.failed == 0) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
             text = when {
                 state.failed == 0 -> "Shelved ${state.processed} documents"
                 else -> "Shelved ${state.processed}, couldn't read ${state.failed}"
@@ -86,6 +101,7 @@ fun TaskBanner(
         )
 
         is TaskState.Sorted -> Banner(
+            icon = if (state.review == 0 && state.failed == 0) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
             text = sortedMessage(state),
             background = if (state.review == 0 && state.failed == 0) Dewey.colors.accentSoft else Dewey.colors.attentionSoft,
             foreground = if (state.review == 0 && state.failed == 0) Dewey.colors.accent else Dewey.colors.attention,
@@ -93,6 +109,7 @@ fun TaskBanner(
         )
 
         is TaskState.Restored -> Banner(
+            icon = if (state.failed == 0) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
             text = restoredMessage(state),
             background = if (state.failed == 0) Dewey.colors.accentSoft else Dewey.colors.attentionSoft,
             foreground = if (state.failed == 0) Dewey.colors.accent else Dewey.colors.attention,
@@ -100,6 +117,7 @@ fun TaskBanner(
         )
 
         is TaskState.Failed -> Banner(
+            icon = Icons.Rounded.ErrorOutline,
             text = state.message,
             background = Dewey.colors.attentionSoft,
             foreground = Dewey.colors.danger,
@@ -107,6 +125,7 @@ fun TaskBanner(
         )
 
         TaskState.Cancelled -> Banner(
+            icon = Icons.Rounded.PauseCircle,
             text = "Stopped. What was read is kept.",
             background = Dewey.colors.paperSunken,
             foreground = Dewey.colors.inkMuted,
@@ -167,21 +186,28 @@ private fun Int.withNoun(noun: String): String = if (this == 1) "1 $noun" else "
 
 @Composable
 private fun Banner(
+    icon: ImageVector,
     text: String,
     background: androidx.compose.ui.graphics.Color,
     foreground: androidx.compose.ui.graphics.Color,
     modifier: Modifier = Modifier,
 ) {
-    Text(
-        text = text,
-        style = Dewey.type.Label,
-        color = foreground,
-        modifier = modifier.fillMaxWidth().background(background).padding(Dewey.spacing.row),
-    )
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Dewey.radii.medium))
+            .background(background)
+            .padding(Dewey.spacing.row),
+        horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = foreground, modifier = Modifier.size(20.dp))
+        Text(text = text, style = Dewey.type.Label, color = foreground)
+    }
 }
 
 /**
- * Progress as a rule that fills, rather than a Material bar.
+ * Progress as a rounded rule that fills, rather than a Material bar.
  *
  * The rule is already the interface's main structural device, so progress
  * reuses it instead of importing a different visual language for one component.
@@ -196,11 +222,19 @@ private fun ProgressRule(
         targetValue = if (indeterminate) 0.08f else fraction.coerceIn(0f, 1f),
         label = "progress",
     )
-    Box(modifier = modifier.fillMaxWidth().height(2.dp).background(Dewey.colors.rule)) {
+    val shape = RoundedCornerShape(999.dp)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(3.dp)
+            .clip(shape)
+            .background(Dewey.colors.rule),
+    ) {
         Box(
             Modifier
                 .fillMaxWidth(animated)
-                .height(2.dp)
+                .height(3.dp)
+                .clip(shape)
                 .background(Dewey.colors.accent)
         )
     }

@@ -1,5 +1,6 @@
 package app.dewey.cloud
 
+import android.util.Log
 import com.google.firebase.Firebase
 import com.google.firebase.ai.GenerativeModel
 import com.google.firebase.ai.ai
@@ -43,6 +44,12 @@ class GeminiAnswerComposer(
             val text = response.text?.trim()
             if (text.isNullOrEmpty()) AnswerResult.Failure.EmptyResponse else AnswerResult.Answered(text)
         } catch (e: FirebaseAIException) {
+            // Logged with its cause before it is reduced to a one-line state.
+            // The user sees "no connection" or "unavailable"; whoever debugs it
+            // needs the exception underneath, which the mapping throws away.
+            // First seen on the emulator, where an UnknownException wrapping
+            // an IOException read as "no connection" with nothing else to go on.
+            Log.w(TAG, "Answer request failed: ${e::class.simpleName}", e)
             mapFirebaseAIFailure(e)
         } catch (e: Exception) {
             // The SDK wraps failures inside generateContent as FirebaseAIException,
@@ -50,11 +57,14 @@ class GeminiAnswerComposer(
             // that throws before the request is even built, can still reach here
             // as something else. It must become a state, not a crash — that is
             // the one thing this class was asked for by name.
+            Log.w(TAG, "Answer request failed before reaching the SDK's own handling", e)
             AnswerResult.Failure.Unavailable(e.message ?: e::class.simpleName ?: "unknown error")
         }
     }
 
     private companion object {
+        const val TAG = "GeminiAnswerComposer"
+
         /**
          * A moving alias rather than a pinned version, deliberately.
          *

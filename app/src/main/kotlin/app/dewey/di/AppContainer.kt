@@ -11,6 +11,8 @@ import app.dewey.cloud.AnswerComposer
 import app.dewey.cloud.GeminiAnswerComposer
 import app.dewey.cloud.UnconfiguredAnswerComposer
 import app.dewey.data.db.DeweyDatabase
+import app.dewey.data.recent.RecentFiles
+import app.dewey.data.recent.recentFilesStore
 import app.dewey.data.repository.DocumentRepository
 import app.dewey.data.storage.DocumentTreeStore
 import app.dewey.data.storage.SafDocumentSource
@@ -100,6 +102,9 @@ class AppContainer(private val context: Context) {
     /** Whether the paid tier is available — see [app.dewey.billing.Entitlements]. */
     val entitlements: Entitlements by lazy { Entitlements(context) }
 
+    /** Scans and tool results, newest first, for Home — see [RecentFiles]. */
+    val recentFiles: RecentFiles by lazy { RecentFiles(context.recentFilesStore, context.contentResolver) }
+
     /** The PDF tools' shared dependencies — see [PdfToolkit]. */
     val pdfToolkit: PdfToolkit by lazy {
         val workspace = PdfWorkspace(context.contentResolver, context.cacheDir)
@@ -108,6 +113,7 @@ class AppContainer(private val context: Context) {
             cacheDir = context.cacheDir,
             workspace = workspace,
             raster = RasterTools(context.contentResolver, workspace, context.cacheDir),
+            recents = recentFiles,
         )
     }
 

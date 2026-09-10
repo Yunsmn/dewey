@@ -1,10 +1,11 @@
 package app.dewey.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,11 +18,14 @@ import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
 
 /**
- * A letterspaced label, a rule that fills the remaining width, and a count.
+ * A sentence-case label and, when there's a count worth showing, a small pill
+ * beside it.
  *
- * This is the motif the whole interface is built on. It separates sections
- * without boxing them, which is what keeps a list of hundreds of documents from
- * turning into a wall of cards.
+ * Small caps and a filling rule read as a catalogue index; a soft-cornered
+ * screen with icon tiles everywhere wants its section breaks to sound like
+ * the rest of it. The count moved off the end of a divider and into its own
+ * pill for the same reason a number sitting alone on a rule used to look like
+ * a page number that wandered off — here it reads as a count of something.
  */
 @Composable
 fun SectionHeading(
@@ -32,24 +36,26 @@ fun SectionHeading(
     Row(
         modifier = modifier.padding(vertical = Dewey.spacing.tight),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row),
+        horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.tight),
     ) {
         Text(
-            text = label.uppercase(),
-            style = Dewey.type.Label,
-            color = Dewey.colors.inkMuted,
+            text = label,
+            style = Dewey.type.Title,
+            color = Dewey.colors.ink,
             modifier = Modifier.semantics { heading() },
         )
-        HorizontalDivider(
-            modifier = Modifier.weight(1f).height(1.dp),
-            color = Dewey.colors.rule,
-        )
         if (count != null) {
-            Text(
-                text = count.toString(),
-                style = Dewey.type.Label,
-                color = Dewey.colors.inkFaint,
-            )
+            Box(
+                modifier = Modifier
+                    .background(Dewey.colors.paperSunken, RoundedCornerShape(999.dp))
+                    .padding(horizontal = Dewey.spacing.tight, vertical = 2.dp),
+            ) {
+                Text(
+                    text = count.toString(),
+                    style = Dewey.type.Meta,
+                    color = Dewey.colors.inkMuted,
+                )
+            }
         }
     }
 }

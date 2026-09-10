@@ -296,4 +296,37 @@ class ScanViewModelTest {
 
         assertThat(scanFileName(capturedAt)).isEqualTo("Scan 2026-09-10 14.32.pdf")
     }
+
+    @Test
+    fun `onSaved receives the target uri when the copy succeeds`() = runTest {
+        val engine = FakeScanEngine().apply { onResult = { DocumentScanner.Outcome.Scanned(pdfUri) } }
+        val copier = FakeScanFileCopy()
+        val savedUris = mutableListOf<Uri>()
+        val viewModel = ScanViewModel(engine, copier, io = UnconfinedTestDispatcher()) { uri ->
+            savedUris.add(uri)
+        }
+        viewModel.onScanResult(activityResult)
+
+        viewModel.save(targetUri)
+
+        assertThat(savedUris).containsExactly(targetUri)
+    }
+
+    @Test
+    fun `onSaved is not called when the copy fails`() = runTest {
+        val engine = FakeScanEngine().apply { onResult = { DocumentScanner.Outcome.Scanned(pdfUri) } }
+        // FileNotFoundException rather than a bare Exception: the catch-all
+        // branch logs through android.util.Log, which a plain JVM test cannot
+        // call, and any failed copy is enough to show onSaved stays silent.
+        val copier = FakeScanFileCopy().apply { onCopy = { _, _ -> throw FileNotFoundException("copy failed") } }
+        val savedUris = mutableListOf<Uri>()
+        val viewModel = ScanViewModel(engine, copier, io = UnconfinedTestDispatcher()) { uri ->
+            savedUris.add(uri)
+        }
+        viewModel.onScanResult(activityResult)
+
+        viewModel.save(targetUri)
+
+        assertThat(savedUris).isEmpty()
+    }
 }

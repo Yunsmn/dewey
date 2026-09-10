@@ -19,7 +19,9 @@ import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
 import app.dewey.ui.tools.PickedFile
+import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolScaffold
+import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
 
@@ -67,13 +69,15 @@ private fun PageNumbersContent(
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
+        hue = ToolDestination.PAGE_NUMBERS.group.hue,
+        icon = ToolDestination.PAGE_NUMBERS.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.source, prompt = "Choose a PDF", onPick = onPickSource)
+        FileSlot(file = state.source, prompt = "Choose a PDF", onPick = onPickSource, hue = ToolDestination.PAGE_NUMBERS.group.hue)
 
         Spacer(Modifier.height(Dewey.spacing.row))
         FieldLabel("Position")
-        CornerGrid(selected = state.corner, onSelect = onCornerChosen)
+        CornerGrid(selected = state.corner, onSelect = onCornerChosen, hue = ToolDestination.PAGE_NUMBERS.group.hue)
 
         Spacer(Modifier.height(Dewey.spacing.row))
         FieldLabel("Starting number")
@@ -82,6 +86,7 @@ private fun PageNumbersContent(
             onValueChange = onStartingNumberChanged,
             placeholder = "1",
             keyboardType = KeyboardType.Number,
+            hue = ToolDestination.PAGE_NUMBERS.group.hue,
         )
 
         Spacer(Modifier.height(Dewey.spacing.row))
@@ -91,6 +96,7 @@ private fun PageNumbersContent(
             selected = state.showTotal,
             label = { showTotal -> formatPageNumber(PREVIEW_NUMBER, state.pageCount ?: PREVIEW_TOTAL_FALLBACK, showTotal) },
             onSelected = onShowTotalChosen,
+            hue = ToolDestination.PAGE_NUMBERS.group.hue,
         )
     }
 }

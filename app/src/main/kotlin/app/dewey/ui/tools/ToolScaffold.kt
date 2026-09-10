@@ -1,6 +1,8 @@
 package app.dewey.ui.tools
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -13,22 +15,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.InsertDriveFile
+import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.dewey.ui.components.GlassCard
+import app.dewey.ui.components.IconTile
 import app.dewey.ui.components.NavBarClearance
 import app.dewey.ui.components.PrimaryAction
 import app.dewey.ui.components.SecondaryAction
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
+import app.dewey.ui.theme.Hue
 
 /**
  * The layout every PDF tool shares: what it does, its inputs, one action, and
@@ -42,6 +52,10 @@ import app.dewey.ui.theme.DeweyTheme
  * @param canRun whether the inputs are complete. The button stays visible but
  *   dimmed and inert until they are, rather than disappearing — a button that
  *   appears only once the form is valid gives no hint of what it is waiting for.
+ * @param hue and @param icon together put a large [IconTile] beside the title,
+ *   the same colour the tool wears on the Home grid — see [ToolGroup.hue]. Both
+ *   are optional and default to null so a screen that hasn't adopted this yet
+ *   still compiles and still shows a title, just without the tile.
  */
 @Composable
 fun ToolScaffold(
@@ -53,6 +67,8 @@ fun ToolScaffold(
     onRun: () -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier,
+    hue: Hue? = null,
+    icon: ImageVector? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val running = state is ToolRunState.Running
@@ -69,7 +85,14 @@ fun ToolScaffold(
             .padding(start = Dewey.spacing.gutter, end = Dewey.spacing.gutter, top = Dewey.spacing.block, bottom = NavBarClearance),
         verticalArrangement = Arrangement.spacedBy(Dewey.spacing.row),
     ) {
-        Text(title, style = Dewey.type.Display, color = Dewey.colors.ink)
+        if (hue != null && icon != null) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row)) {
+                IconTile(icon = icon, hue = hue, size = 56.dp)
+                Text(title, style = Dewey.type.Headline, color = Dewey.colors.ink)
+            }
+        } else {
+            Text(title, style = Dewey.type.Display, color = Dewey.colors.ink)
+        }
         Text(description, style = Dewey.type.Body, color = Dewey.colors.inkMuted)
         Spacer(Modifier.height(Dewey.spacing.tight))
 
@@ -123,32 +146,57 @@ private fun Outcome(state: ToolRunState, onReset: () -> Unit) {
 
 /**
  * One input slot for a file: its name and size once chosen, a prompt before.
- * The whole card is the tap target, so there is no small "Browse" button to aim
- * for.
+ * The whole slot is the tap target, so there is no small "Browse" button to
+ * aim for.
+ *
+ * Sunken rather than raised — [Dewey.colors.paperSunken], no shadow, no
+ * border — so it reads as a place a file goes rather than as one more card
+ * competing with the ones around it. An icon carries what used to be carried
+ * by an accent-coloured word of text: [Icons.Rounded.UploadFile] before a
+ * file is chosen, [Icons.Rounded.InsertDriveFile] once one is.
  */
 @Composable
-fun FileSlot(file: PickedFile?, prompt: String, onPick: () -> Unit, modifier: Modifier = Modifier) {
-    GlassCard(modifier = modifier.fillMaxWidth(), onClick = onPick) {
+fun FileSlot(file: PickedFile?, prompt: String, onPick: () -> Unit, modifier: Modifier = Modifier, hue: Hue? = null) {
+    val tint = hue?.strong ?: Dewey.colors.accent
+    val shape = RoundedCornerShape(Dewey.radii.medium)
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Dewey.colors.paperSunken)
+            .clickable(onClick = onPick)
+            .padding(Dewey.spacing.gutter),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row),
+    ) {
+        IconTile(
+            icon = if (file == null) Icons.Rounded.UploadFile else Icons.Rounded.InsertDriveFile,
+            hue = hue ?: Hue(tint, tint.copy(alpha = 0.14f)),
+            size = 40.dp,
+        )
         if (file == null) {
-            Text(prompt, style = Dewey.type.Body, color = Dewey.colors.accent)
+            Text(prompt, style = Dewey.type.Body, color = Dewey.colors.ink)
         } else {
-            Text(
-                text = file.name.ifEmpty { "Chosen file" },
-                style = Dewey.type.Mono,
-                color = Dewey.colors.ink,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(Dewey.spacing.hairline))
-            Text("${formatBytes(file.sizeBytes)} · tap to change", style = Dewey.type.Meta, color = Dewey.colors.inkMuted)
+            Column {
+                Text(
+                    text = file.name.ifEmpty { "Chosen file" },
+                    style = Dewey.type.Mono,
+                    color = Dewey.colors.ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(Dewey.spacing.hairline))
+                Text("${formatBytes(file.sizeBytes)} · tap to change", style = Dewey.type.Meta, color = Dewey.colors.inkMuted)
+            }
         }
     }
 }
 
-/** A small caps label above an input, matching the library's section headings. */
+/** A field label above an input, in sentence case rather than shouted small caps. */
 @Composable
 fun FieldLabel(text: String) {
-    Text(text.uppercase(), style = Dewey.type.Label, color = Dewey.colors.inkMuted)
+    Text(text, style = Dewey.type.Label, color = Dewey.colors.inkMuted)
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 700, widthDp = 390)

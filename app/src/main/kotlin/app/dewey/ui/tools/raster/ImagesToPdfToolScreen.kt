@@ -31,9 +31,11 @@ import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
 import app.dewey.ui.tools.PickedFile
+import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolRunState
 import app.dewey.ui.tools.ToolScaffold
 import app.dewey.ui.tools.formatBytes
+import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberImagesPicker
 import app.dewey.ui.tools.rememberSaveAs
 
@@ -79,10 +81,12 @@ private fun ImagesToPdfContent(
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
+        hue = ToolDestination.IMAGES_TO_PDF.group.hue,
+        icon = ToolDestination.IMAGES_TO_PDF.icon,
     ) {
         FieldLabel("Images")
         if (state.images.isEmpty()) {
-            FileSlot(file = null, prompt = "Choose images", onPick = onPickImages)
+            FileSlot(file = null, prompt = "Choose images", onPick = onPickImages, hue = ToolDestination.IMAGES_TO_PDF.group.hue)
         } else {
             val lastIndex = state.images.lastIndex
             Column(verticalArrangement = Arrangement.spacedBy(Dewey.spacing.tight)) {
@@ -108,6 +112,7 @@ private fun ImagesToPdfContent(
             selected = state.quality,
             label = RasterQuality::label,
             onSelected = onQualityChosen,
+            hue = ToolDestination.IMAGES_TO_PDF.group.hue,
         )
     }
 }

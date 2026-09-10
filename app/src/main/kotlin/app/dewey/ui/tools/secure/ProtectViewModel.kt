@@ -78,7 +78,7 @@ class ProtectViewModel(private val toolkit: PdfToolkit) : ViewModel() {
                 sizeBytes = source.sizeBytes,
                 password = current.password,
                 allowPrinting = current.allowPrinting,
-            ).onFailure { toolkit.discardOutput(target) }
+            ).onFailure { toolkit.discardOutput(target) }.onSuccess { toolkit.recordOutput(target) }
             _state.value = _state.value.afterRun(result, target)
         }
     }

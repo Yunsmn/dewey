@@ -18,8 +18,10 @@ import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
 import app.dewey.ui.tools.PickedFile
+import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolScaffold
 import app.dewey.ui.tools.derivedFileName
+import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
 
@@ -60,9 +62,11 @@ private fun ReorderToolContent(
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
+        hue = ToolDestination.REORDER.group.hue,
+        icon = ToolDestination.REORDER.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile)
+        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile, hue = ToolDestination.REORDER.group.hue)
 
         if (state.file != null) {
             PageCountHint(state.pageCount)
@@ -74,6 +78,7 @@ private fun ReorderToolContent(
                         onValueChange = onFromChanged,
                         placeholder = "e.g. 5",
                         keyboardType = KeyboardType.Number,
+                        hue = ToolDestination.REORDER.group.hue,
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -83,6 +88,7 @@ private fun ReorderToolContent(
                         onValueChange = onToChanged,
                         placeholder = "e.g. 1",
                         keyboardType = KeyboardType.Number,
+                        hue = ToolDestination.REORDER.group.hue,
                     )
                 }
             }

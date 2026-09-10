@@ -13,8 +13,10 @@ import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
 import app.dewey.ui.tools.PickedFile
+import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolScaffold
 import app.dewey.ui.tools.derivedFileName
+import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
 
@@ -53,9 +55,11 @@ private fun ExtractToolContent(
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
+        hue = ToolDestination.EXTRACT.group.hue,
+        icon = ToolDestination.EXTRACT.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile)
+        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile, hue = ToolDestination.EXTRACT.group.hue)
 
         if (state.file != null) {
             FieldLabel("Pages to extract")
@@ -64,6 +68,7 @@ private fun ExtractToolContent(
                 value = state.rangeText,
                 onValueChange = onRangeChanged,
                 placeholder = "e.g. 1-3, 7",
+                hue = ToolDestination.EXTRACT.group.hue,
             )
         }
     }

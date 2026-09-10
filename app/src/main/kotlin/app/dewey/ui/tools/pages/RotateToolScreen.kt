@@ -3,7 +3,6 @@ package app.dewey.ui.tools.pages
 import app.dewey.ui.tools.ToolTextField
 import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,8 +25,10 @@ import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
 import app.dewey.ui.tools.PickedFile
+import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolScaffold
 import app.dewey.ui.tools.derivedFileName
+import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
 
@@ -70,9 +71,11 @@ private fun RotateToolContent(
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
+        hue = ToolDestination.ROTATE.group.hue,
+        icon = ToolDestination.ROTATE.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile)
+        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile, hue = ToolDestination.ROTATE.group.hue)
 
         if (state.file != null) {
             FieldLabel("Pages to rotate")
@@ -81,6 +84,7 @@ private fun RotateToolContent(
                 value = state.rangeText,
                 onValueChange = onRangeChanged,
                 placeholder = "e.g. 1-3, 7 — blank means every page",
+                hue = ToolDestination.ROTATE.group.hue,
             )
 
             FieldLabel("Direction")
@@ -100,19 +104,19 @@ private fun QuarterTurnChoice(selected: Int?, onSelect: (Int) -> Unit) {
 
 @Composable
 private fun QuarterTurnChip(degrees: Int, isSelected: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(2.dp)
+    val hue = ToolDestination.ROTATE.group.hue
+    val shape = RoundedCornerShape(Dewey.radii.small)
     Box(
         modifier = Modifier
             .clip(shape)
-            .background(if (isSelected) Dewey.colors.accentSoft else Color.Transparent, shape)
-            .border(1.dp, if (isSelected) Dewey.colors.accent else Dewey.colors.rule, shape)
+            .background(if (isSelected) hue.strong else Dewey.colors.paperSunken, shape)
             .clickable(onClick = onClick)
-            .padding(horizontal = Dewey.spacing.gutter, vertical = Dewey.spacing.tight),
+            .padding(horizontal = Dewey.spacing.gutter, vertical = Dewey.spacing.row),
     ) {
         Text(
             text = "$degrees°",
-            style = Dewey.type.Meta,
-            color = if (isSelected) Dewey.colors.ink else Dewey.colors.inkMuted,
+            style = Dewey.type.Meta.copy(fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal),
+            color = if (isSelected) Dewey.colors.onAccent else Dewey.colors.inkMuted,
         )
     }
 }

@@ -14,8 +14,10 @@ import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
 import app.dewey.ui.tools.PickedFile
+import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolRunState
 import app.dewey.ui.tools.ToolScaffold
+import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
 
@@ -58,9 +60,11 @@ private fun UnlockContent(
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
+        hue = ToolDestination.UNLOCK.group.hue,
+        icon = ToolDestination.UNLOCK.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.source, prompt = "Choose a protected PDF", onPick = onPickSource)
+        FileSlot(file = state.source, prompt = "Choose a protected PDF", onPick = onPickSource, hue = ToolDestination.UNLOCK.group.hue)
 
         Spacer(Modifier.height(Dewey.spacing.row))
         FieldLabel("Password")
@@ -70,6 +74,7 @@ private fun UnlockContent(
             placeholder = "The document's password",
             visible = state.passwordVisible,
             onToggleVisible = onPasswordVisibilityToggled,
+            hue = ToolDestination.UNLOCK.group.hue,
         )
     }
 }

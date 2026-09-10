@@ -5,17 +5,23 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -27,10 +33,13 @@ import app.dewey.ui.theme.DeweyTheme
 /**
  * One document in the library.
  *
- * The title is serif because it is what you read; the filename and amount are
- * monospaced because they are machine strings you scan. Showing the real
- * filename matters — `Scan_20240312_004.pdf` beside "Lydec, janvier 2023" is the
- * product's entire argument in one line.
+ * [leading] is where a caller drops an [app.dewey.ui.components.IconTile] —
+ * a category's hue, seen before a word of the row is read. The title carries
+ * the new sans hierarchy at [app.dewey.ui.theme.DeweyType.Title] weight; the
+ * filename and amount stay monospaced because they are machine strings you
+ * scan rather than read. Showing the real filename matters —
+ * `Scan_20240312_004.pdf` beside "Lydec, janvier 2023" is the product's
+ * entire argument in one line.
  *
  * Before a document has been classified there is no such title, only the
  * useless filename. Repeating it in both lines would waste the row's strongest
@@ -49,13 +58,16 @@ fun DocumentRow(
     // reads in Dewey.colors.attention rather than the usual muted ink. See
     // app.dewey.ui.bills.BillsScreen.
     subtitleColor: Color = Dewey.colors.inkMuted,
+    leading: (@Composable () -> Unit)? = null,
 ) {
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
+    val shape = RoundedCornerShape(Dewey.radii.medium)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clip(shape)
             // Pressing tints the paper rather than raising a ripple: the surface
             // is meant to read as a page, and a page does not float.
             .background(if (pressed) Dewey.colors.paperSunken else Dewey.colors.paper)
@@ -64,6 +76,9 @@ fun DocumentRow(
         horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row),
         verticalAlignment = Alignment.Top,
     ) {
+        if (leading != null) {
+            Box(modifier = Modifier.padding(top = Dewey.spacing.hairline)) { leading() }
+        }
         Column(modifier = Modifier.weight(1f)) {
             if (title != null) {
                 Text(
@@ -128,12 +143,18 @@ private fun DocumentRowPreview() {
                 filename = "document (5).pdf",
                 trailing = "281.26",
                 onClick = {},
+                leading = {
+                    IconTile(icon = Icons.Rounded.Bolt, hue = Dewey.colors.hues.forCategory("Electricity"))
+                },
             )
             DocumentRow(
                 title = "Attijariwafa Bank",
                 subtitle = "Account statement · fevrier 2024",
                 filename = "WhatsApp Doc 2022-01-20 at 10.22.24.pdf",
                 onClick = {},
+                leading = {
+                    IconTile(icon = Icons.Rounded.AccountBalance, hue = Dewey.colors.hues.forCategory("Banking"))
+                },
             )
             // Not yet classified: leads with the filename, says so.
             DocumentRow(

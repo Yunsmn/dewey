@@ -33,6 +33,7 @@ class ScanViewModel(
     private val engine: ScanEngine,
     private val copier: ScanFileCopy,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    private val onSaved: suspend (Uri) -> Unit = {},
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ScanUiState>(ScanUiState.Ready)
@@ -113,6 +114,7 @@ class ScanViewModel(
         viewModelScope.launch(io) {
             try {
                 copier.copy(pdfUri, targetUri)
+                onSaved(targetUri)
                 _state.value = ScanUiState.Saved
             } catch (e: CancellationException) {
                 // The caller changed its mind, not a failed save. Swallowing
@@ -152,8 +154,8 @@ class ScanViewModel(
         private const val EXPIRED_SCAN_MESSAGE = "The scan is no longer available — scan again."
 
         /** Wires the real scanner and a real, [ContentResolver]-backed copy. */
-        fun factory(scanner: DocumentScanner, resolver: ContentResolver) =
-            factory(DocumentScannerEngine(scanner), ContentResolverScanFileCopy(resolver))
+        fun factory(scanner: DocumentScanner, resolver: ContentResolver, onSaved: suspend (Uri) -> Unit = {}) =
+            factory(DocumentScannerEngine(scanner), ContentResolverScanFileCopy(resolver), onSaved)
 
         /**
          * Not wired to [app.dewey.di.AppContainer] — that container doesn't
@@ -162,9 +164,9 @@ class ScanViewModel(
          * [DocumentScanner] (or a fake [ScanEngine] for previews/tests) and
          * a [ScanFileCopy], and passes them here.
          */
-        fun factory(engine: ScanEngine, copier: ScanFileCopy) = object : ViewModelProvider.Factory {
+        fun factory(engine: ScanEngine, copier: ScanFileCopy, onSaved: suspend (Uri) -> Unit = {}) = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T = ScanViewModel(engine, copier) as T
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = ScanViewModel(engine, copier, Dispatchers.IO, onSaved) as T
         }
     }
 }

@@ -13,8 +13,10 @@ import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
 import app.dewey.ui.tools.PickedFile
+import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolScaffold
 import app.dewey.ui.tools.derivedFileName
+import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
 
@@ -53,9 +55,11 @@ private fun DeletePagesToolContent(
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
+        hue = ToolDestination.DELETE_PAGES.group.hue,
+        icon = ToolDestination.DELETE_PAGES.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile)
+        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile, hue = ToolDestination.DELETE_PAGES.group.hue)
 
         if (state.file != null) {
             FieldLabel("Pages to delete")
@@ -64,6 +68,7 @@ private fun DeletePagesToolContent(
                 value = state.rangeText,
                 onValueChange = onRangeChanged,
                 placeholder = "e.g. 2, 5-6",
+                hue = ToolDestination.DELETE_PAGES.group.hue,
             )
         }
     }

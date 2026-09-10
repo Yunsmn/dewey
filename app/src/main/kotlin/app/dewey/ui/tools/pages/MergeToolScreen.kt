@@ -33,9 +33,11 @@ import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.PickedFile
+import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolScaffold
 import app.dewey.ui.tools.derivedFileName
 import app.dewey.ui.tools.formatBytes
+import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfsPicker
 import app.dewey.ui.tools.rememberSaveAs
 
@@ -83,6 +85,8 @@ private fun MergeToolContent(
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
+        hue = ToolDestination.MERGE.group.hue,
+        icon = ToolDestination.MERGE.icon,
     ) {
         FieldLabel("Files, in order")
         state.files.forEachIndexed { index, file ->

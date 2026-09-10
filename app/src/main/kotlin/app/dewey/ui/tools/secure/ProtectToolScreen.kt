@@ -16,7 +16,9 @@ import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
 import app.dewey.ui.tools.PickedFile
+import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolScaffold
+import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
 
@@ -63,9 +65,11 @@ private fun ProtectContent(
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
+        hue = ToolDestination.PROTECT.group.hue,
+        icon = ToolDestination.PROTECT.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.source, prompt = "Choose a PDF", onPick = onPickSource)
+        FileSlot(file = state.source, prompt = "Choose a PDF", onPick = onPickSource, hue = ToolDestination.PROTECT.group.hue)
 
         Spacer(Modifier.height(Dewey.spacing.row))
         FieldLabel("Password")
@@ -75,6 +79,7 @@ private fun ProtectContent(
             placeholder = "At least 8 characters",
             visible = state.passwordVisible,
             onToggleVisible = onPasswordVisibilityToggled,
+            hue = ToolDestination.PROTECT.group.hue,
         )
         protectPasswordReason(state.password)?.let { reason ->
             Spacer(Modifier.height(Dewey.spacing.hairline))
@@ -89,6 +94,7 @@ private fun ProtectContent(
             placeholder = "Type it again",
             visible = state.passwordVisible,
             onToggleVisible = onPasswordVisibilityToggled,
+            hue = ToolDestination.PROTECT.group.hue,
         )
         protectConfirmReason(state.password, state.confirmPassword)?.let { reason ->
             Spacer(Modifier.height(Dewey.spacing.hairline))
@@ -102,6 +108,7 @@ private fun ProtectContent(
             selected = state.allowPrinting,
             label = { allow -> if (allow) "Allow printing" else "Ask readers not to print" },
             onSelected = onAllowPrintingChosen,
+            hue = ToolDestination.PROTECT.group.hue,
         )
         Spacer(Modifier.height(Dewey.spacing.hairline))
         Text(

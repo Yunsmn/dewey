@@ -68,7 +68,7 @@ class ImagesToPdfViewModel(private val toolkit: PdfToolkit) : ViewModel() {
                 imageUris = current.images.map { it.uri },
                 targetUri = target,
                 quality = current.quality,
-            ).onFailure { toolkit.discardOutput(target) }
+            ).onFailure { toolkit.discardOutput(target) }.onSuccess { toolkit.recordOutput(target) }
 
             _state.value = _state.value.copy(
                 run = outcome.fold(
