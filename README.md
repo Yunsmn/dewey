@@ -192,7 +192,7 @@ The free tier builds and runs without it.
 
 ### The encoder
 
-The encoder is not committed — 113MB of third-party weights do not belong in git
+The encoder is not committed — 118MB of third-party weights do not belong in git
 history. Fetch and prepare it before building or running the tests:
 
 ```

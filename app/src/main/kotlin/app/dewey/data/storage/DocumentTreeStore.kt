@@ -47,17 +47,6 @@ class DocumentTreeStore(
         return true
     }
 
-    suspend fun forget(treeUri: Uri) {
-        preferences.edit { prefs ->
-            prefs[KEY_TREES] = prefs[KEY_TREES].orEmpty() - treeUri.toString()
-        }
-        runCatching {
-            resolver.releasePersistableUriPermission(
-                treeUri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-            )
-        }
-    }
 
     /**
      * A grant can disappear without us being told — the user revokes it in

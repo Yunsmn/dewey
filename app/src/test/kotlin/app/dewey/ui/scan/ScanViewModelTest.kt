@@ -1,5 +1,6 @@
 package app.dewey.ui.scan
 
+import app.dewey.scan.DocumentScanner
 import android.app.Activity
 import android.content.IntentSender
 import android.net.Uri
@@ -22,15 +23,15 @@ private class FakeScanEngine : ScanEngine {
     var onStart: (onReady: (IntentSender) -> Unit, onUnavailable: () -> Unit) -> Unit =
         { _, onUnavailable -> onUnavailable() }
 
-    /** What [resultPdf] returns, or throws, for the next call. */
-    var onResult: (ActivityResult) -> Uri? = { null }
+    /** What [outcome] returns, or throws, for the next call. */
+    var onResult: (ActivityResult) -> DocumentScanner.Outcome = { DocumentScanner.Outcome.Cancelled }
 
     override fun startScan(activity: Activity, onReady: (IntentSender) -> Unit, onUnavailable: () -> Unit) {
         startCalls++
         onStart(onReady, onUnavailable)
     }
 
-    override fun resultPdf(result: ActivityResult): Uri? = onResult(result)
+    override fun outcome(result: ActivityResult): DocumentScanner.Outcome = onResult(result)
 }
 
 /**
@@ -138,7 +139,7 @@ class ScanViewModelTest {
 
     @Test
     fun `a finished scan carries the pdf uri forward`() {
-        val engine = FakeScanEngine().apply { onResult = { pdfUri } }
+        val engine = FakeScanEngine().apply { onResult = { DocumentScanner.Outcome.Scanned(pdfUri) } }
         val viewModel = ScanViewModel(engine)
 
         viewModel.onScanResult(activityResult)
@@ -147,13 +148,29 @@ class ScanViewModelTest {
     }
 
     @Test
-    fun `backing out of the scanner with no pdf reads as cancelled, not failed`() {
-        val engine = FakeScanEngine().apply { onResult = { null } }
+    fun `backing out of the scanner reads as cancelled, not failed`() {
+        val engine = FakeScanEngine().apply { onResult = { DocumentScanner.Outcome.Cancelled } }
         val viewModel = ScanViewModel(engine)
 
         viewModel.onScanResult(activityResult)
 
         assertThat(viewModel.state.value).isEqualTo(ScanUiState.Cancelled)
+    }
+
+    @Test
+    fun `a scan that finishes without a document is a failure, not a cancellation`() {
+        // The two used to be the same value. A scan that genuinely failed told
+        // the user they had backed out, so they would retry for ever while the
+        // app insisted nothing was wrong.
+        val engine = FakeScanEngine().apply {
+            onResult = { DocumentScanner.Outcome.NoDocument("the scanner returned success with no PDF") }
+        }
+        val viewModel = ScanViewModel(engine)
+
+        viewModel.onScanResult(activityResult)
+
+        assertThat(viewModel.state.value)
+            .isEqualTo(ScanUiState.Failed("The scan finished but the scanner returned success with no PDF."))
     }
 
     @Test
@@ -170,7 +187,7 @@ class ScanViewModelTest {
 
     @Test
     fun `reset returns to ready from a finished scan, ready for another`() {
-        val engine = FakeScanEngine().apply { onResult = { pdfUri } }
+        val engine = FakeScanEngine().apply { onResult = { DocumentScanner.Outcome.Scanned(pdfUri) } }
         val viewModel = ScanViewModel(engine)
         viewModel.onScanResult(activityResult)
 

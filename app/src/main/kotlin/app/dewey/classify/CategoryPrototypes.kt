@@ -57,6 +57,13 @@ object CategoryPrototypes {
          * one is something you read, the other something you keep. Widening
          * University to swallow both would make both folders worse.
          */
+        DocType.TRAVEL to listOf(
+            "Carte d'embarquement, vol, numero de siege, porte, heure de depart, aeroport",
+            "Boarding pass or flight booking with passenger name, seat, gate and departure time",
+            "بطاقة صعود الطائرة، رقم الرحلة، المقعد، بوابة المغادرة، المطار",
+            "Reservation d'hotel, nuitees, date d'arrivee et de depart, confirmation de reservation",
+            "Hotel or train booking confirmation with dates, reference number and traveller name",
+        ),
         DocType.PAPER to listOf(
             "Research paper with an abstract, introduction, method, experiments, results and a list of references",
             "Article de recherche scientifique avec resume, introduction, methode, resultats et bibliographie",

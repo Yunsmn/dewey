@@ -45,21 +45,43 @@ class DocumentScanner(private val context: Context) {
     fun intentSender(activity: Activity): Task<IntentSender> =
         GmsDocumentScanning.getClient(options).getStartScanIntent(activity)
 
-    /**
-     * The PDF a completed scan produced, or null if the user backed out.
-     *
-     * The URI points into the scanner's own storage and is readable only while
-     * the grant lasts, so callers must copy the bytes rather than store the URI.
-     */
-    fun resultPdf(result: ActivityResult): Uri? {
-        if (result.resultCode != Activity.RESULT_OK) return null
+    /** How a launched scan ended. */
+    sealed interface Outcome {
+        /**
+         * The URI points into the scanner's own storage and is readable only
+         * while the grant lasts, so callers must copy the bytes rather than
+         * store the URI.
+         */
+        data class Scanned(val pdf: Uri) : Outcome
 
-        val scan = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
-        val uri = scan?.pdf?.uri
-        if (uri == null) {
-            Log.w(TAG, "Scan finished without a PDF; result code ${result.resultCode}")
-        }
-        return uri
+        /** The user backed out. Nothing was produced and nothing went wrong. */
+        data object Cancelled : Outcome
+
+        /**
+         * The scanner reported success and handed back no PDF.
+         *
+         * Deliberately not folded into [Cancelled], which is what it used to
+         * be. The two are indistinguishable to a caller that only gets a
+         * nullable URI, so somebody whose scan genuinely failed was told they
+         * had backed out — and would retry for ever, since the app was
+         * insisting nothing had gone wrong. It is rare and needs a real device
+         * to provoke (a Play Services version mismatch, mostly), which is
+         * exactly why it must not be silent.
+         */
+        data class NoDocument(val reason: String) : Outcome
+    }
+
+    /** What [result] says happened. */
+    fun outcome(result: ActivityResult): Outcome {
+        if (result.resultCode != Activity.RESULT_OK) return Outcome.Cancelled
+
+        val data = result.data
+            ?: return Outcome.NoDocument("the scanner returned success with no data")
+
+        val uri = GmsDocumentScanningResult.fromActivityResultIntent(data)?.pdf?.uri
+            ?: return Outcome.NoDocument("the scanner returned success with no PDF")
+
+        return Outcome.Scanned(uri)
     }
 
     private companion object {

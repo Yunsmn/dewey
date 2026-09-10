@@ -5,7 +5,7 @@ package app.dewey.index
  *
  * An interface because the encoder is the one part of retrieval most likely to
  * be swapped — and because tests need a deterministic stand-in that does not
- * load a 120MB model.
+ * load a 118MB model.
  */
 interface Embedder {
 

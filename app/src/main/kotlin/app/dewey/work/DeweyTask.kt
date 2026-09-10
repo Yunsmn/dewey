@@ -14,7 +14,6 @@ enum class DeweyTask(val uniqueName: String) {
     ;
 
     companion object {
-        fun fromUniqueName(name: String): DeweyTask? = entries.find { it.uniqueName == name }
     }
 }
 

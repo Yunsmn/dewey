@@ -54,13 +54,22 @@ class ScanViewModel(private val engine: ScanEngine) : ViewModel() {
 
     /** The scanner activity has returned. Reads a PDF, or notes the user cancelled. */
     fun onScanResult(result: ActivityResult) {
-        val pdfUri = try {
-            engine.resultPdf(result)
+        val outcome = try {
+            engine.outcome(result)
         } catch (e: RuntimeException) {
             _state.value = ScanUiState.Failed(e.message ?: "Couldn't read the finished scan")
             return
         }
-        _state.value = if (pdfUri != null) ScanUiState.Scanned(pdfUri) else ScanUiState.Cancelled
+
+        // NoDocument used to arrive here as null, indistinguishable from a
+        // cancellation, so a scan that genuinely failed told the user they had
+        // backed out. It is a failure and it says so.
+        _state.value = when (outcome) {
+            is DocumentScanner.Outcome.Scanned -> ScanUiState.Scanned(outcome.pdf)
+            is DocumentScanner.Outcome.Cancelled -> ScanUiState.Cancelled
+            is DocumentScanner.Outcome.NoDocument ->
+                ScanUiState.Failed("The scan finished but ${outcome.reason}.")
+        }
     }
 
     /**

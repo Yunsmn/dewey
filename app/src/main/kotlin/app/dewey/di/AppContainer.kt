@@ -98,7 +98,7 @@ class AppContainer(private val context: Context) {
     val entitlements: Entitlements by lazy { Entitlements(context) }
 
     /**
-     * Overridable so instrumentation tests can index without loading a 120MB
+     * Overridable so instrumentation tests can index without loading a 118MB
      * encoder. Assigned before first use of [embedder] or it has no effect.
      */
     var embedderFactory: () -> Embedder = { OnnxEmbedder.create(context) }

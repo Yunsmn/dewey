@@ -1,6 +1,7 @@
 package app.dewey.ui.scan
 
 import android.app.Activity
+import android.util.Log
 import android.content.IntentSender
 import android.net.Uri
 import androidx.activity.result.ActivityResult
@@ -28,8 +29,8 @@ interface ScanEngine {
      */
     fun startScan(activity: Activity, onReady: (IntentSender) -> Unit, onUnavailable: () -> Unit)
 
-    /** The PDF a completed scan produced, or null if the user backed out. */
-    fun resultPdf(result: ActivityResult): Uri?
+    /** What the finished scan produced — see [DocumentScanner.Outcome]. */
+    fun outcome(result: ActivityResult): DocumentScanner.Outcome
 }
 
 /**
@@ -46,8 +47,23 @@ class DocumentScannerEngine(private val scanner: DocumentScanner) : ScanEngine {
     override fun startScan(activity: Activity, onReady: (IntentSender) -> Unit, onUnavailable: () -> Unit) {
         scanner.intentSender(activity)
             .addOnSuccessListener { intentSender -> onReady(intentSender) }
-            .addOnFailureListener { onUnavailable() }
+            .addOnFailureListener { error ->
+                // Logged before it is swallowed. The class doc says this call
+                // fails exactly when the scanner module is unavailable, but
+                // that has never been checked against a real device — and if
+                // it is ever wrong (a network drop mid-download, a bad
+                // options object), every such case is otherwise
+                // indistinguishable from "this phone cannot scan" with
+                // nothing in a bug report to tell them apart.
+                Log.w(TAG, "Could not start the scanner", error)
+                onUnavailable()
+            }
     }
 
-    override fun resultPdf(result: ActivityResult): Uri? = scanner.resultPdf(result)
+    override fun outcome(result: ActivityResult): DocumentScanner.Outcome =
+        scanner.outcome(result)
+
+    private companion object {
+        const val TAG = "ScanEngine"
+    }
 }

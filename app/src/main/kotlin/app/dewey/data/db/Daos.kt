@@ -52,8 +52,6 @@ interface DocumentDao {
     @Query("SELECT * FROM documents WHERE uri = :uri")
     suspend fun byUri(uri: String): DocumentRow?
 
-    @Query("SELECT id FROM documents WHERE indexed_at IS NULL")
-    suspend fun unindexedIds(): List<Long>
 
     @Query("SELECT COUNT(*) FROM documents")
     fun observeCount(): Flow<Int>
@@ -107,9 +105,14 @@ interface DocumentDao {
 
     /**
      * A bill is a document with both a due date and an amount - see
-     * app.dewey.ui.bills.BillGrouping. Ordered soonest-due-first here so the
-     * grouping layer only ever has to bucket an already-sorted list, never
-     * re-sort it.
+     * app.dewey.ui.bills.BillGrouping.
+     *
+     * Ordered soonest-due-first so the list arrives in the order it is read in,
+     * and so two runs against the same data produce the same screen. Note that
+     * BillGrouping sorts again rather than trusting this: it is fed from tests
+     * as well as from here, and it should give one answer regardless of which.
+     * The duplication is deliberate and cheap - do not remove either sort
+     * believing the other covers it.
      */
     @Query(
         """

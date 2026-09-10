@@ -15,7 +15,7 @@ import java.util.Locale
 
 /**
  * "Lydec · janvier 2023", or just "Lydec" with no date, or null with no
- * vendor at all - the same "leave it honest" rule [Document.title] already
+ * vendor at all - the same "leave it honest" rule LibraryScreen's private Document.title() already
  * used for an unclassified document, extended to a classified one that the
  * extractor still found nothing to name in the text.
  */

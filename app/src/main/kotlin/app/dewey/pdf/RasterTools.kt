@@ -294,7 +294,7 @@ class RasterTools(
     /**
      * A document's size in bytes, or null when the provider does not say —
      * COLUMN_SIZE is allowed to come back null, meaning "unknown", not zero.
-     * See [app.dewey.sort.DocumentMover.sizeOf] for the same gap on the read
+     * See DocumentMover's own private sizeOf for the same gap on the read
      * side.
      */
     private fun sizeOf(uri: Uri): Long? = try {

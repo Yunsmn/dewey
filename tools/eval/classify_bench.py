@@ -20,6 +20,12 @@ from pypdf import PdfReader
 
 from retrieval_bench import Encoder, chunk
 
+# Mirrors DocumentClassifier.MIN_SIMILARITY / MIN_MARGIN. If those move, move
+# these: a bench measuring a different threshold than the app ships is not
+# measuring the app.
+MIN_SIMILARITY = 0.80
+MIN_MARGIN = 0.008
+
 CORPUS = Path('tools/corpus/corpus')
 GROUND_TRUTH = Path('tools/corpus/ground_truth.json')
 
@@ -51,6 +57,17 @@ PROTOTYPES = {
         "Compte rendu medical, consultation, diagnostic, ordonnance, clinique, patient",
         "تقرير طبي، استشارة، تشخيص، وصفة طبية، عيادة",
         "Medical report from a clinic with a consultation, diagnosis and prescription",
+    ],
+    # No travel documents exist in the generated corpus, so this category cannot
+    # be scored for recall here. It is present so the bench measures the thing
+    # that actually matters about adding it: whether a travel prototype steals
+    # documents that belong to another category.
+    'travel': [
+        "Carte d'embarquement, vol, numero de siege, porte, heure de depart, aeroport",
+        "Boarding pass or flight booking with passenger name, seat, gate and departure time",
+        "بطاقة صعود الطائرة، رقم الرحلة، المقعد، بوابة المغادرة، المطار",
+        "Reservation d'hotel, nuitees, date d'arrivee et de depart, confirmation de reservation",
+        "Hotel or train booking confirmation with dates, reference number and traveller name",
     ],
     # Kept in step with CategoryPrototypes.kt — see the note there on why this
     # is separate from 'university' rather than folded into it.
@@ -136,6 +153,9 @@ def main() -> None:
     # Best single prototype wins, rather than the mean over a category's
     # prototypes: the categories are described in different languages, and
     # averaging a French and an Arabic description lands between both.
+    # Kept alongside the predictions so the app's own two thresholds can be
+    # applied below rather than re-derived.
+    ranked_all = []
     predictions, confidences = [], []
     for row in scores:
         best_by_label = {
@@ -144,9 +164,43 @@ def main() -> None:
         ranked = sorted(best_by_label.items(), key=lambda kv: -kv[1])
         predictions.append(ranked[0][0])
         confidences.append(ranked[0][1] - ranked[1][1])
+        ranked_all.append((ranked[0][0], float(ranked[0][1]), float(ranked[0][1] - ranked[1][1])))
 
     correct = sum(p == w for p, w in zip(predictions, wanted))
-    print(f'accuracy: {correct}/{len(wanted)} = {correct / len(wanted):.1%}')
+    print(f'argmax accuracy: {correct}/{len(wanted)} = {correct / len(wanted):.1%}')
+
+    # The number above is not what the app does, and on its own it is
+    # misleading in both directions.
+    #
+    # DocumentClassifier only acts on a document when the winning category
+    # clears MIN_SIMILARITY *and* beats the runner-up by MIN_MARGIN. Anything
+    # else goes to a person. So a document sitting four ten-thousandths from a
+    # category boundary is not a misfiling the user ever sees — it is the
+    # review queue doing its job — and counting it as an error understates the
+    # app while making the headline figure hostage to the fourth decimal
+    # place. (Adding a travel category, which cannot win any document in this
+    # corpus, still flipped one such document and moved "accuracy" from 100%
+    # to 99%: the encoder pads each batch to its longest member, so changing
+    # what is in a batch perturbs every vector in it very slightly.)
+    #
+    # What matters for trust is the pair below: how much the app is willing to
+    # file, and how much of that it gets right.
+    acted, acted_correct, declined, declined_correct = 0, 0, 0, 0
+    for (label, top, margin), want in zip(ranked_all, wanted):
+        if top >= MIN_SIMILARITY and margin >= MIN_MARGIN:
+            acted += 1
+            acted_correct += label == want
+        else:
+            declined += 1
+            declined_correct += label == want
+
+    print(f'filed (sim >= {MIN_SIMILARITY}, margin >= {MIN_MARGIN}): '
+          f'{acted}/{len(wanted)} = {acted / len(wanted):.1%} of the corpus')
+    if acted:
+        print(f'  correct among those filed: {acted_correct}/{acted} = {acted_correct / acted:.1%}')
+    print(f'sent to review: {declined}')
+    if declined:
+        print(f'  of which the argmax would have got right anyway: {declined_correct}/{declined}')
 
     # The review queue depends on this being meaningful: if wrong answers are
     # not less confident than right ones, there is nothing to surface.
