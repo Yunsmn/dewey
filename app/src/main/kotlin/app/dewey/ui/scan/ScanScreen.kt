@@ -52,6 +52,9 @@ import app.dewey.ui.components.PrimaryAction
 import app.dewey.ui.components.SecondaryAction
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
+import app.dewey.ui.tools.PDF_MIME
+import app.dewey.ui.tools.rememberSaveAs
+import java.time.LocalDateTime
 import kotlinx.coroutines.delay
 
 /**
@@ -63,15 +66,15 @@ import kotlinx.coroutines.delay
  * no camera preview or edge-detection overlay for this screen to draw without
  * lying about what it does — see the state machine on [ScanUiState].
  *
- * @param onSaveScan called with the scanned PDF's URI once the user chooses to
- *   keep it. That URI is only readable while ML Kit's own grant lasts — the
- *   caller is expected to run a SAF create-document flow and copy the bytes
- *   somewhere durable. This screen does not write files itself.
+ * Saving is this screen's own concern: tapping Save on a finished scan opens
+ * a SAF create-document flow for a suggested name (see [scanFileName]), and
+ * the target it returns is handed to [ScanViewModel.save], which copies the
+ * bytes off ML Kit's own storage — see [ScanUiState.Scanned] for why that
+ * copy can't be skipped.
  */
 @Composable
 fun ScanScreen(
     viewModel: ScanViewModel,
-    onSaveScan: (Uri) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -81,6 +84,8 @@ fun ScanScreen(
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result -> viewModel.onScanResult(result) }
+
+    val saveAs = rememberSaveAs(PDF_MIME) { targetUri -> viewModel.save(targetUri) }
 
     // Launches exactly once per ReadyToLaunch value: LaunchedEffect is keyed on
     // the state instance, and onScanLaunched immediately moves state off
@@ -97,7 +102,7 @@ fun ScanScreen(
     ScanContent(
         state = state,
         onScan = { activity?.let(viewModel::startScan) },
-        onSave = { uri -> onSaveScan(uri) },
+        onSave = { saveAs(scanFileName(LocalDateTime.now())) },
         onReset = viewModel::reset,
         modifier = modifier,
     )
@@ -107,7 +112,7 @@ fun ScanScreen(
 private fun ScanContent(
     state: ScanUiState,
     onScan: () -> Unit,
-    onSave: (Uri) -> Unit,
+    onSave: () -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -148,9 +153,17 @@ private fun ScanContent(
                         is ScanUiState.ReadyToLaunch -> PreparingNotice()
                         is ScanUiState.Scanning -> PreparingNotice()
                         is ScanUiState.Scanned -> ScannedResult(
-                            pdfUri = current.pdfUri,
                             onSave = onSave,
                             onScanAnother = onReset,
+                        )
+                        is ScanUiState.Saving -> SavingNotice()
+                        is ScanUiState.Saved -> SavedNotice(onScanAnother = onReset)
+                        is ScanUiState.SaveFailed -> OutcomeNotice(
+                            icon = Icons.Outlined.ErrorOutline,
+                            title = "Couldn't save the scan",
+                            body = current.message,
+                            actionLabel = "Scan again",
+                            onAction = onScan,
                         )
                         is ScanUiState.Cancelled -> OutcomeNotice(
                             icon = Icons.Outlined.HighlightOff,
@@ -277,7 +290,7 @@ private fun PreparingNotice() {
  * grant lasts — see [ScanUiState.Scanned].
  */
 @Composable
-private fun ScannedResult(pdfUri: Uri, onSave: (Uri) -> Unit, onScanAnother: () -> Unit) {
+private fun ScannedResult(onSave: () -> Unit, onScanAnother: () -> Unit) {
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Icon(
@@ -302,10 +315,54 @@ private fun ScannedResult(pdfUri: Uri, onSave: (Uri) -> Unit, onScanAnother: () 
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(Dewey.spacing.block))
-            PrimaryAction(label = "Save", onClick = { onSave(pdfUri) }, modifier = Modifier.fillMaxWidth())
+            PrimaryAction(label = "Save", onClick = onSave, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(Dewey.spacing.row))
             SecondaryAction(label = "Scan another page", onClick = onScanAnother)
         }
+    }
+}
+
+/**
+ * Shown while [ScanViewModel.save] is copying the scan off ML Kit's storage
+ * and into the location the user chose. Its own visual rather than folded
+ * into [PreparingNotice]'s "preparing" group: that group is about the scanner
+ * activity starting up, and this is a different wait with a different cause.
+ */
+@Composable
+private fun SavingNotice() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        CircularProgressIndicator(color = Dewey.colors.accent)
+        Spacer(Modifier.height(Dewey.spacing.block))
+        Text(
+            text = "Saving your scan",
+            style = Dewey.type.Title,
+            color = Dewey.colors.ink,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/** The scan was copied to where the user chose. Offers another scan, same as [ScannedResult] does. */
+@Composable
+private fun SavedNotice(onScanAnother: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(
+            imageVector = Icons.Outlined.CheckCircleOutline,
+            contentDescription = null,
+            tint = Dewey.colors.accent,
+            modifier = Modifier.size(40.dp),
+        )
+        Spacer(Modifier.height(Dewey.spacing.row))
+        Text(text = "Scan saved", style = Dewey.type.Title, color = Dewey.colors.ink, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(Dewey.spacing.tight))
+        Text(
+            text = "It's kept where you chose to save it.",
+            style = Dewey.type.Body,
+            color = Dewey.colors.inkMuted,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(Dewey.spacing.block))
+        SecondaryAction(label = "Scan another", onClick = onScanAnother)
     }
 }
 
@@ -374,6 +431,35 @@ private fun ScanScannedPreview() {
     DeweyTheme {
         ScanContent(
             state = ScanUiState.Scanned(Uri.parse("content://app.dewey.scan/1")),
+            onScan = {},
+            onSave = {},
+            onReset = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 780, widthDp = 390)
+@Composable
+private fun ScanSavingPreview() {
+    DeweyTheme {
+        ScanContent(state = ScanUiState.Saving, onScan = {}, onSave = {}, onReset = {})
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 780, widthDp = 390)
+@Composable
+private fun ScanSavedPreview() {
+    DeweyTheme {
+        ScanContent(state = ScanUiState.Saved, onScan = {}, onSave = {}, onReset = {})
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 780, widthDp = 390)
+@Composable
+private fun ScanSaveFailedPreview() {
+    DeweyTheme {
+        ScanContent(
+            state = ScanUiState.SaveFailed("The scan is no longer available — scan again."),
             onScan = {},
             onSave = {},
             onReset = {},

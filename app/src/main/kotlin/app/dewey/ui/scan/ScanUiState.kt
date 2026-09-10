@@ -39,10 +39,27 @@ sealed interface ScanUiState {
     /**
      * A scan completed. [pdfUri] points into ML Kit's own storage and is
      * readable only while the grant from that activity result lasts — it must
-     * be saved (copied) somewhere durable, not stored as-is. See `onSaveScan`
-     * on [app.dewey.ui.scan.ScanScreen].
+     * be saved (copied) somewhere durable, not stored as-is. See
+     * [app.dewey.ui.scan.ScanViewModel.save].
      */
     data class Scanned(val pdfUri: Uri) : ScanUiState
+
+    /**
+     * The scan from [Scanned] is being copied into the location the user
+     * chose via a SAF create-document flow. See
+     * [app.dewey.ui.scan.ScanViewModel.save].
+     */
+    data object Saving : ScanUiState
+
+    /** The scan was copied into the user's chosen location. */
+    data object Saved : ScanUiState
+
+    /**
+     * The copy in [Saving] failed. [message] is written for a person, not a
+     * log — see [app.dewey.ui.scan.ScanViewModel.save] for what can cause
+     * this, including the scan's source grant having expired.
+     */
+    data class SaveFailed(val message: String) : ScanUiState
 
     /** The user backed out of the scanner without finishing. */
     data object Cancelled : ScanUiState
