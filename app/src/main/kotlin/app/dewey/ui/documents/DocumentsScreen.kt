@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -60,8 +61,17 @@ fun DocumentsScreen(
         initialValue = !container.entitlements.isConfigured,
     )
 
+    // Composed before the entitlement check, not inside the locked showcase:
+    // buying replaces the showcase with the documents, and a paywall inside it
+    // would leave composition before its confirmation could show. See
+    // LibrarianGate, which does the same for the other paid tabs.
+    var showPaywall by rememberSaveable { mutableStateOf(false) }
+    if (showPaywall) {
+        LibrarianPaywall(entitlements = container.entitlements, onDismiss = { showPaywall = false })
+    }
+
     if (!entitled) {
-        DocumentsLockedShowcase(entitlements = container.entitlements, modifier = modifier)
+        DocumentsLockedShowcase(onUnlock = { showPaywall = true }, modifier = modifier)
         return
     }
 

@@ -14,6 +14,7 @@ import app.dewey.data.db.DeweyDatabase
 import app.dewey.data.recent.RecentFiles
 import app.dewey.data.recent.recentFilesStore
 import app.dewey.data.repository.DocumentRepository
+import app.dewey.data.repository.NotesRepository
 import app.dewey.data.storage.DocumentTreeStore
 import app.dewey.data.storage.SafDocumentSource
 import app.dewey.index.Chunker
@@ -79,6 +80,9 @@ class AppContainer(private val context: Context) {
     }
 
     val documentSearch: DocumentSearch by lazy { DocumentSearch(database.chunkDao()) }
+
+    /** Notes, standalone or attached to a bill - see app.dewey.domain.model.Note. */
+    val notesRepository: NotesRepository by lazy { NotesRepository(noteDao = database.noteDao()) }
 
     val documentDao by lazy { database.documentDao() }
 

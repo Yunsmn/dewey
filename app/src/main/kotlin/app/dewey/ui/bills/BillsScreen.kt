@@ -1,5 +1,6 @@
 package app.dewey.ui.bills
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -18,6 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -67,26 +73,51 @@ private fun BillsContent(
                 Spacer(Modifier.height(Dewey.spacing.gutter))
             }
 
-            if (state.isEmpty) {
-                item(key = "empty") { EmptyBills() }
-            }
+            billsItems(state = state, onOpenDocument = onOpenDocument)
+        }
+    }
+}
 
-            for (section in state.sections) {
-                item(key = "heading-${section.urgency.name}") {
-                    Spacer(Modifier.height(Dewey.spacing.tight))
-                    SectionHeading(label = section.urgency.label(), count = section.documents.size)
-                    Spacer(Modifier.height(Dewey.spacing.tight))
-                }
-                items(section.documents, key = { it.id }) { document ->
-                    BillCard(
-                        document = document,
-                        urgency = section.urgency,
-                        today = state.today,
-                        onClick = { onOpenDocument(document) },
-                    )
-                    Spacer(Modifier.height(Dewey.spacing.tight))
-                }
-            }
+/**
+ * The bills list's items, as a [LazyListScope] extension rather than a
+ * composable of its own - a `LazyColumn` cannot host another `LazyColumn`,
+ * and this is what lets [BillsContent]'s own list and the Notes tab's Bills
+ * segment (see app.dewey.ui.notes.NotesScreen) share the same rows without
+ * either nesting one inside the other or standing up a second `Scaffold`.
+ *
+ * @param noteCounts how many notes are attached to each bill, keyed by
+ *   document id - empty when the caller (bare [BillsScreen]) has no notes
+ *   feature wired in at all.
+ * @param onAddNote shown as an "Add note" affordance on every card when set;
+ *   left null to hide it entirely rather than show a control that does
+ *   nothing.
+ */
+fun LazyListScope.billsItems(
+    state: BillsUiState,
+    onOpenDocument: (Document) -> Unit,
+    noteCounts: Map<Long, Int> = emptyMap(),
+    onAddNote: ((Document) -> Unit)? = null,
+) {
+    if (state.isEmpty) {
+        item(key = "empty") { EmptyBills() }
+    }
+
+    for (section in state.sections) {
+        item(key = "heading-${section.urgency.name}") {
+            Spacer(Modifier.height(Dewey.spacing.tight))
+            SectionHeading(label = section.urgency.label(), count = section.documents.size)
+            Spacer(Modifier.height(Dewey.spacing.tight))
+        }
+        items(section.documents, key = { it.id }) { document ->
+            BillCard(
+                document = document,
+                urgency = section.urgency,
+                today = state.today,
+                noteCount = noteCounts[document.id] ?: 0,
+                onAddNote = onAddNote?.let { callback -> { callback(document) } },
+                onClick = { onOpenDocument(document) },
+            )
+            Spacer(Modifier.height(Dewey.spacing.tight))
         }
     }
 }
@@ -110,7 +141,14 @@ private fun BillsContent(
  * see the doc on BillsUiState.today.
  */
 @Composable
-private fun BillCard(document: Document, urgency: BillUrgency, today: LocalDate, onClick: () -> Unit) {
+private fun BillCard(
+    document: Document,
+    urgency: BillUrgency,
+    today: LocalDate,
+    onClick: () -> Unit,
+    noteCount: Int = 0,
+    onAddNote: (() -> Unit)? = null,
+) {
     val edge = when (urgency) {
         BillUrgency.OVERDUE -> Dewey.colors.danger
         BillUrgency.DUE_SOON -> Dewey.colors.attention
@@ -174,6 +212,34 @@ private fun BillCard(document: Document, urgency: BillUrgency, today: LocalDate,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+
+        if (onAddNote != null) {
+            Spacer(Modifier.height(Dewey.spacing.tight))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = when (noteCount) {
+                        0 -> "No notes yet"
+                        1 -> "1 note"
+                        else -> "$noteCount notes"
+                    },
+                    style = Dewey.type.Meta,
+                    color = Dewey.colors.inkFaint,
+                )
+                Text(
+                    text = "Add note",
+                    style = Dewey.type.Meta.copy(fontWeight = FontWeight.SemiBold),
+                    color = Dewey.colors.accent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .clickable(role = Role.Button, onClick = onAddNote)
+                        .padding(horizontal = Dewey.spacing.tight, vertical = 4.dp),
+                )
+            }
+        }
     }
 }
 

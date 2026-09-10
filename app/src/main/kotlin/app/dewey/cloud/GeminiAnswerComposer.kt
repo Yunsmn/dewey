@@ -9,6 +9,7 @@ import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.ai.type.PermissionMissingException
 import com.google.firebase.ai.type.PromptBlockedException
 import com.google.firebase.ai.type.QuotaExceededException
+import com.google.firebase.ai.type.RequestOptions
 import com.google.firebase.ai.type.RequestTimeoutException
 import com.google.firebase.ai.type.ResponseStoppedException
 import com.google.firebase.ai.type.UnknownException
@@ -27,28 +28,40 @@ import java.io.IOException
  * App Check is what stops anyone who finds this project id from spending its
  * quota — see docs/firebase-setup.md. A rejected token surfaces as
  * [AnswerResult.Failure.NotAuthorized] here, not a crash.
+ *
+ * ## Latency
+ *
+ * Measured against the live endpoint on 2026-09-10, because the first version
+ * of this class never answered on a device: it waited out the SDK's default
+ * three-minute timeout and then reported a timeout. Two things were behind it.
+ * The alias it used resolved to a thinking model that took 28s to reply "ok".
+ * And the backend's latency is wildly uneven: the same small request took 1.2s,
+ * then 52.7s. Streaming did not help — the first chunk arrived with the whole
+ * answer. Hence a model that does not think, a short timeout, and one retry,
+ * which on a latency that uneven is often faster than waiting.
  */
 class GeminiAnswerComposer(
     modelName: String = MODEL_NAME,
 ) : AnswerComposer {
 
     private val model: GenerativeModel by lazy {
-        Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(modelName)
+        Firebase.ai(backend = GenerativeBackend.googleAI())
+            .generativeModel(modelName = modelName, requestOptions = RequestOptions(TIMEOUT_MILLIS))
     }
 
     override suspend fun answer(question: String, passages: List<RetrievedPassage>): AnswerResult {
         val prompt = AnswerPromptBuilder.build(question, passages)
 
         return try {
-            val response = model.generateContent(content { text(prompt) })
+            val response = retryOnceOn(isRetryable = { it is RequestTimeoutException }) {
+                model.generateContent(content { text(prompt) })
+            }
             val text = response.text?.trim()
             if (text.isNullOrEmpty()) AnswerResult.Failure.EmptyResponse else AnswerResult.Answered(text)
         } catch (e: FirebaseAIException) {
             // Logged with its cause before it is reduced to a one-line state.
-            // The user sees "no connection" or "unavailable"; whoever debugs it
-            // needs the exception underneath, which the mapping throws away.
-            // First seen on the emulator, where an UnknownException wrapping
-            // an IOException read as "no connection" with nothing else to go on.
+            // The user sees "no connection" or "took too long"; whoever debugs
+            // it needs the exception underneath, which the mapping throws away.
             Log.w(TAG, "Answer request failed: ${e::class.simpleName}", e)
             mapFirebaseAIFailure(e)
         } catch (e: Exception) {
@@ -66,21 +79,46 @@ class GeminiAnswerComposer(
         const val TAG = "GeminiAnswerComposer"
 
         /**
-         * A moving alias rather than a pinned version, deliberately.
+         * A moving alias rather than a pinned version, deliberately, and the
+         * lite one.
          *
-         * Verified against the live endpoint on 2026-09-02: `gemini-2.0-flash`
-         * is retired and `gemini-2.5-flash` is "no longer available to new
-         * users" — two retirements visible on the same day. A pinned name in a
-         * repo that judges may build months from now is a runtime NOT_FOUND
-         * waiting to happen, and no unit test would catch it because the failure
-         * only exists on the wire.
+         * Moving: verified against the live endpoint on 2026-09-02,
+         * `gemini-2.0-flash` is retired and `gemini-2.5-flash` is "no longer
+         * available to new users". A pinned name in a repo that judges may
+         * build months from now is a runtime NOT_FOUND waiting to happen.
          *
-         * The cost is that the model can change under us. For a summariser
-         * working from passages we supply, that is the cheaper risk.
+         * Lite: `gemini-flash-latest` thinks before answering, which cost 28s
+         * on a one-word reply and 74s on a bill question even with its thinking
+         * budget set to zero. The lite model does not think, and answered the
+         * same bill question correctly. This class summarises passages it is
+         * handed; it has no use for reasoning it has to wait for.
          */
-        const val MODEL_NAME = "gemini-flash-latest"
+        const val MODEL_NAME = "gemini-flash-lite-latest"
+
+        /**
+         * Per attempt, so the worst case is two of these. Short enough that a
+         * stuck request becomes a retry the user never sees rather than a
+         * spinner; long enough for the slow responses measured above that
+         * still came back.
+         */
+        const val TIMEOUT_MILLIS = 30_000L
     }
 }
+
+/**
+ * Runs [block], and runs it once more if it fails with something [isRetryable]
+ * accepts. A second failure of any kind is thrown as it is.
+ *
+ * Top-level and `internal` so the retry rule can be unit-tested without a
+ * model or a network.
+ */
+internal suspend fun <T> retryOnceOn(isRetryable: (Throwable) -> Boolean, block: suspend () -> T): T =
+    try {
+        block()
+    } catch (e: Exception) {
+        if (!isRetryable(e)) throw e
+        block()
+    }
 
 /**
  * Turns an SDK exception into a state the UI can show.

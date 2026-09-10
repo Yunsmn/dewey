@@ -150,6 +150,26 @@ interface DocumentDao {
 }
 
 @Dao
+interface NoteDao {
+
+    /** Pinned first, then most recently updated - see NotesRepository.sortNotes. */
+    @Query("SELECT * FROM notes ORDER BY pinned DESC, updatedAt DESC")
+    fun observeAll(): Flow<List<NoteRow>>
+
+    @Query("SELECT * FROM notes WHERE billDocumentId = :documentId ORDER BY pinned DESC, updatedAt DESC")
+    fun observeForDocument(documentId: Long): Flow<List<NoteRow>>
+
+    @Upsert
+    suspend fun upsert(row: NoteRow): Long
+
+    @Query("DELETE FROM notes WHERE id = :id")
+    suspend fun delete(id: Long)
+
+    @Query("UPDATE notes SET pinned = :pinned, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun setPinned(id: Long, pinned: Boolean, updatedAt: Long)
+}
+
+@Dao
 interface ChunkDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)

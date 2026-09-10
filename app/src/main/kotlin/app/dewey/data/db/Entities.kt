@@ -59,6 +59,40 @@ data class DocumentRow(
     @ColumnInfo(name = "due_date") val dueDateEpochDay: Long? = null,
 )
 
+/**
+ * A note the user wrote, standalone or attached to a bill.
+ *
+ * [billDocumentId] is left un-renamed by [ColumnInfo] deliberately, unlike
+ * the rest of this file's snake_case columns — its default column name is
+ * what fixes the migration's index name at `index_notes_billDocumentId`, and
+ * a hand-written migration is exactly the place a silent rename would only
+ * surface as a runtime crash on someone's real device.
+ */
+@Entity(
+    tableName = "notes",
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentRow::class,
+            parentColumns = ["id"],
+            childColumns = ["billDocumentId"],
+            // SET NULL, not CASCADE: deleting the document a note is about
+            // should leave the note as a standalone one, never delete it too.
+            onDelete = ForeignKey.SET_NULL,
+        ),
+    ],
+    indices = [Index(value = ["billDocumentId"])],
+)
+data class NoteRow(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val body: String,
+    /** The `documents` row this note is about, or null for a standalone note. */
+    val billDocumentId: Long? = null,
+    val pinned: Boolean = false,
+    val createdAt: Long,
+    val updatedAt: Long,
+)
+
 @Entity(
     tableName = "chunks",
     foreignKeys = [

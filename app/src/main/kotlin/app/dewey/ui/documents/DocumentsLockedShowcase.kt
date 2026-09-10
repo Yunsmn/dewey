@@ -17,24 +17,16 @@ import androidx.compose.material.icons.rounded.Receipt
 import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import app.dewey.billing.Entitlements
-import app.dewey.ui.billing.LibrarianPaywall
 import app.dewey.ui.components.IconTile
 import app.dewey.ui.components.NavBarClearance
 import app.dewey.ui.components.PrimaryAction
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.theme.Hue
-import kotlinx.coroutines.launch
 
 /**
  * What Librarian gets you, for the tab it lives behind.
@@ -45,24 +37,15 @@ import kotlinx.coroutines.launch
  * feature list is a more honest pitch than one padlock icon for four
  * genuinely different things: the folder link itself, automatic sorting,
  * asking questions, and bill tracking.
+ *
+ * It only asks for the paywall through [onUnlock]; [DocumentsScreen] owns the
+ * paywall itself, outside this showcase, so buying — which replaces this
+ * showcase with the documents — does not take the paywall's confirmation
+ * down with it.
  */
 @Composable
-fun DocumentsLockedShowcase(entitlements: Entitlements, modifier: Modifier = Modifier) {
-    var showPaywall by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
-    if (showPaywall) {
-        LibrarianPaywall(
-            entitlements = entitlements,
-            onDismiss = {
-                showPaywall = false
-                // A purchase arrives through the listener anyway; this only removes the wait.
-                scope.launch { entitlements.refresh() }
-            },
-        )
-    }
-
-    DocumentsLockedContent(onUnlock = { showPaywall = true }, modifier = modifier)
+fun DocumentsLockedShowcase(onUnlock: () -> Unit, modifier: Modifier = Modifier) {
+    DocumentsLockedContent(onUnlock = onUnlock, modifier = modifier)
 }
 
 private data class LockedFeature(val icon: ImageVector, val hue: Hue, val title: String, val blurb: String)

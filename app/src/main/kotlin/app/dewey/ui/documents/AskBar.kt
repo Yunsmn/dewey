@@ -184,7 +184,7 @@ private fun Answered(state: AnswerUiState.Answered, onOpenDocument: (Document) -
         Row(horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row)) {
             IconTile(icon = Icons.Rounded.AutoAwesome, hue = hue, size = 32.dp)
             Column {
-                Text(text = state.text, style = Dewey.type.Body, color = Dewey.colors.ink)
+                Text(text = answerMarkdownToAnnotated(state.text), style = Dewey.type.Body, color = Dewey.colors.ink)
                 if (state.sources.isNotEmpty()) {
                     Spacer(Modifier.height(Dewey.spacing.row))
                     Row(

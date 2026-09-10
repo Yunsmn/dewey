@@ -20,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -30,13 +29,12 @@ import androidx.navigation.navArgument
 import app.dewey.di.AppContainer
 import app.dewey.domain.model.Document
 import app.dewey.ui.billing.LibrarianGate
-import app.dewey.ui.bills.BillsScreen
-import app.dewey.ui.bills.BillsViewModel
 import app.dewey.ui.components.BottomNav
 import app.dewey.ui.components.NavDestination
 import app.dewey.ui.documents.DocumentsScreen
 import app.dewey.ui.home.HomeScreen
 import app.dewey.ui.me.MeScreen
+import app.dewey.ui.notes.NotesScreen
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolScreen
@@ -159,8 +157,7 @@ fun DeweyApp(container: AppContainer) {
                     title = "Notes and bills",
                     blurb = "Every bill Dewey finds in your documents, with what is due and when — and notes of your own beside them.",
                 ) {
-                    val model: BillsViewModel = viewModel(factory = BillsViewModel.factory(container))
-                    BillsScreen(viewModel = model, onOpenDocument = onOpenDocument)
+                    NotesScreen(container = container, onOpenDocument = onOpenDocument)
                 }
             }
             composable(Routes.ME) {
