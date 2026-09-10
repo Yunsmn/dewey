@@ -34,6 +34,19 @@ sealed interface RasterFailure {
 class RasterToolException(val failure: RasterFailure) : Exception(failure.toString())
 
 /**
+ * What an export to images actually produced.
+ *
+ * [skipped] exists because a count alone cannot say whether it is complete.
+ * Asked for every page of a twenty-page document, an export that quietly
+ * failed to render page fourteen used to come back as a successful 19 — and a
+ * caller who never asked for a specific list has nothing to compare 19 against.
+ * The indices are 0-based, matching the pageIndex handed to onPage.
+ */
+data class PageExport(val rendered: Int, val skipped: List<Int>) {
+    val isComplete: Boolean get() = skipped.isEmpty()
+}
+
+/**
  * What [RasterTools.compress] achieved, so the caller can say so rather than
  * silently accepting whatever came out.
  *
@@ -78,7 +91,9 @@ class RasterTools(
      * @param pages null renders every page; otherwise only these zero-based
      *   indices, in the order given. An index outside the document is
      *   skipped rather than failing the whole call.
-     * @return the number of pages actually rendered.
+     * @return how many pages were rendered and which were skipped — see
+     *   [PageExport]. A write that fails inside [onPage] fails the whole call
+     *   as [RasterFailure.WriteFailed], not as an unreadable source.
      */
     suspend fun pdfToImages(
         uri: Uri,
@@ -87,24 +102,46 @@ class RasterTools(
         quality: RasterQuality = RasterQuality.BALANCED,
         pages: List<Int>? = null,
         onPage: suspend (pageIndex: Int, bytes: ByteArray) -> Unit,
-    ): Result<Int> = withContext(io) {
+    ): Result<PageExport> = withContext(io) {
         pageSource.withRenderer(uri, sizeBytes) { renderer ->
             val indices = pages ?: (0 until renderer.pageCount)
             var rendered = 0
+            val skipped = mutableListOf<Int>()
             for (index in indices) {
                 coroutineContext.ensureActive()
-                if (index !in 0 until renderer.pageCount) continue
-                val page = pageSource.renderPage(renderer, index, quality.longEdgePx) ?: continue
+                if (index !in 0 until renderer.pageCount) {
+                    skipped += index
+                    continue
+                }
+                val page = pageSource.renderPage(renderer, index, quality.longEdgePx)
+                if (page == null) {
+                    skipped += index
+                    continue
+                }
                 val bytes = try {
                     encode(page.bitmap, format, quality.jpegQuality)
                 } finally {
                     page.bitmap.recycle()
                 }
-                if (bytes == null) continue
-                onPage(index, bytes)
+                if (bytes == null) {
+                    skipped += index
+                    continue
+                }
+                try {
+                    onPage(index, bytes)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // The caller's write, not our render. Named as such so
+                    // withRenderer passes it through instead of calling the
+                    // source unreadable.
+                    throw RasterToolException(
+                        RasterFailure.WriteFailed(e.message ?: "could not save page ${index + 1}")
+                    )
+                }
                 rendered++
             }
-            rendered
+            PageExport(rendered = rendered, skipped = skipped.toList())
         }
     }
 

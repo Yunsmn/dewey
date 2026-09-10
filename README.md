@@ -102,14 +102,16 @@ does not, because it does not need to: each document is already embedded for
 search, and a category is another point in the same space, so a label is a
 nearest-neighbour lookup against a short description of each kind of document.
 
-Measured against the test corpus's own labels, that is **100% accurate** across
-thirteen categories in French, Arabic and English. It costs nothing per file,
+Measured against the test corpus's own labels, it files 97 of 100 documents and
+gets **every one of those 97 right**; the other three go to review rather than
+being guessed at. That is across thirteen categories described in French, Arabic
+and English. It costs nothing per file,
 works with no network, and means sorting a folder sends nothing anywhere at all.
 
 A real Downloads folder is not only admin, so `Papers` is one of the thirteen:
-sixteen genuine arXiv papers and an RFC are all recognised as papers, fourteen of
-them confidently enough to file. Adding it cost nothing on the corpus — still
-100% — but it was worth checking, because a maths-heavy phrasing tried during
+fifteen arXiv papers and an RFC are all recognised as papers, fourteen of
+them confidently enough to file. It was worth measuring rather than assuming,
+because a maths-heavy phrasing tried during
 tuning pulled an English university transcript into Papers and was dropped for it.
 
 It also declines to answer. A document has to clear 0.80 similarity against a
@@ -254,7 +256,7 @@ Kept current and honest.
 - [~] Stage 6 — PDF toolkit. In progress.
 
 Measured, not asserted: retrieval is 81% recall@1 and 95% recall@3 over the test
-corpus; classification is 100% over thirteen categories, and the app also learns
+corpus; classification files 97 of 100 documents with none wrong, across thirteen categories, and the app also learns
 categories from folders you already keep — a folder of your own documents
 describes them about three times more sharply than any description we wrote
 (margin 0.089 against 0.027, leave-one-out). Every harness is in `tools/eval/`

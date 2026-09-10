@@ -67,7 +67,7 @@ suspend fun watermark(
     // every failure inside the block as Unreadable, which would misdescribe a
     // document that opened fine and failed while being drawn on.
     runStamping(source) { stampWatermark(document, text, opacity, angleDegrees, fontSize) }
-        ?: saveTo(document, resolver, target)
+        ?: saveOpenDocument(document, resolver, target)
 }.flatten()
 
 /**
@@ -90,7 +90,7 @@ suspend fun pageNumbers(
     margin: Float = DEFAULT_MARGIN,
 ): Result<Unit> = workspace.read(source, sizeBytes) { document ->
     runStamping(source) { stampPageNumbers(document, corner, startingNumber, showTotal, fontSize, margin) }
-        ?: saveTo(document, resolver, target)
+        ?: saveOpenDocument(document, resolver, target)
 }.flatten()
 
 /**
@@ -180,29 +180,3 @@ private fun stampPageNumbers(
     }
 }
 
-/**
- * Persists [document] to [target].
- *
- * [PdfWorkspace.write] cannot be reused here: it takes the document *after*
- * [PdfWorkspace.read] has already closed it, but the stamping above has to
- * happen while the document is still open. This reproduces write()'s
- * contract instead of skipping it — a new file, never the source, and a
- * named [PdfWorkspace.Failure] rather than a raw exception.
- */
-private fun saveTo(document: PDDocument, resolver: ContentResolver, target: Uri): Result<Unit> =
-    try {
-        resolver.openOutputStream(target, "wt").use { out ->
-            if (out == null) {
-                Result.failure(PdfToolException(PdfWorkspace.Failure.CouldNotWrite("could not open $target")))
-            } else {
-                document.save(out)
-                Result.success(Unit)
-            }
-        }
-    } catch (e: Exception) {
-        Log.w(TAG, "Could not write $target", e)
-        Result.failure(PdfToolException(PdfWorkspace.Failure.CouldNotWrite(e.message ?: "write failed")))
-    }
-
-/** Collapses the read-outcome/write-outcome pair [PdfWorkspace.read] leaves nested. */
-private fun <T> Result<Result<T>>.flatten(): Result<T> = fold(onSuccess = { it }, onFailure = { Result.failure(it) })

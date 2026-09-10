@@ -74,6 +74,13 @@ internal class RasterPageSource(
             }
         } catch (e: CancellationException) {
             throw e
+        } catch (e: RasterToolException) {
+            // Already classified by whoever threw it — usually a caller's own
+            // write failing partway through the action. Folding it into the
+            // catch-all below would report a document that opened and rendered
+            // perfectly well as Unreadable, and send someone looking for a
+            // problem with their PDF when the problem was a full disk.
+            Result.failure(e)
         } catch (e: Exception) {
             Log.w(TAG, "Could not render $uri", e)
             Result.failure(RasterToolException(RasterFailure.Unreadable(uri.lastPathSegment.orEmpty())))

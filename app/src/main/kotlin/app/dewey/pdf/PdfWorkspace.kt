@@ -118,3 +118,36 @@ class PdfWorkspace(
 
 /** Carries a [PdfWorkspace.Failure] through Kotlin's [Result]. */
 class PdfToolException(val failure: PdfWorkspace.Failure) : Exception(failure.toString())
+
+/**
+ * Saves a document that is still open to [target].
+ *
+ * [PdfWorkspace.write] cannot serve an edit made inside [PdfWorkspace.read]:
+ * read closes the document the moment its block returns, and the block is not
+ * a suspend function, so the suspending write can be called neither inside it
+ * nor after it. This is write's contract without the suspension — a new file,
+ * never the source, and a named failure rather than a raw exception.
+ *
+ * Shared rather than repeated. The two tools that edit a document in place
+ * each carried an identical private copy of this, doc comment and all.
+ */
+internal fun saveOpenDocument(document: PDDocument, resolver: ContentResolver, target: Uri): Result<Unit> =
+    try {
+        resolver.openOutputStream(target, "wt").use { out ->
+            if (out == null) {
+                Result.failure(PdfToolException(PdfWorkspace.Failure.CouldNotWrite("could not open $target")))
+            } else {
+                document.save(out)
+                Result.success(Unit)
+            }
+        }
+    } catch (e: Exception) {
+        Log.w(SAVE_TAG, "Could not write $target", e)
+        Result.failure(PdfToolException(PdfWorkspace.Failure.CouldNotWrite(e.message ?: "write failed")))
+    }
+
+/** Collapses the read-outcome/write-outcome pair [PdfWorkspace.read] leaves nested. */
+internal fun <T> Result<Result<T>>.flatten(): Result<T> =
+    fold(onSuccess = { it }, onFailure = { Result.failure(it) })
+
+private const val SAVE_TAG = "PdfWorkspace"

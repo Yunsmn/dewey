@@ -83,7 +83,7 @@ suspend fun protect(
             Log.w(TAG, "Could not apply protection to $source", e)
             return@read Result.failure(PdfToolException(PdfWorkspace.Failure.CouldNotWrite(e.message ?: "could not protect")))
         }
-        saveTo(document, resolver, target)
+        saveOpenDocument(document, resolver, target)
     }.flatten()
 }
 
@@ -127,7 +127,7 @@ suspend fun unlock(
                 // would still carry the encryption dictionary forward; this is
                 // what actually produces a plain copy.
                 document.setAllSecurityToBeRemoved(true)
-                saveTo(document, resolver, target)
+                saveOpenDocument(document, resolver, target)
             }
         }
     } catch (e: InvalidPasswordException) {
@@ -176,30 +176,3 @@ private fun applyProtection(document: PDDocument, password: String, allowPrintin
     document.protect(policy)
 }
 
-/**
- * Persists [document] to [target].
- *
- * [PdfWorkspace.write] cannot be reused here: it takes the document *after*
- * [PdfWorkspace.read] has already closed it — its own `.use` block ends the
- * moment the read block returns — but the protection above has to happen
- * while the document is still open. This reproduces write()'s contract
- * instead of skipping it: a new file, never the source, and a named
- * [PdfWorkspace.Failure] rather than a raw exception reaching the caller.
- */
-private fun saveTo(document: PDDocument, resolver: ContentResolver, target: Uri): Result<Unit> =
-    try {
-        resolver.openOutputStream(target, "wt").use { out ->
-            if (out == null) {
-                Result.failure(PdfToolException(PdfWorkspace.Failure.CouldNotWrite("could not open $target")))
-            } else {
-                document.save(out)
-                Result.success(Unit)
-            }
-        }
-    } catch (e: Exception) {
-        Log.w(TAG, "Could not write $target", e)
-        Result.failure(PdfToolException(PdfWorkspace.Failure.CouldNotWrite(e.message ?: "write failed")))
-    }
-
-/** Collapses the read-outcome/write-outcome pair [PdfWorkspace.read] leaves nested. */
-private fun <T> Result<Result<T>>.flatten(): Result<T> = fold(onSuccess = { it }, onFailure = { Result.failure(it) })

@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.Flow
  *
  * A projection rather than a slice of [DocumentRow]: Room maps a query's
  * columns onto whatever class is asked for, so naming the three columns a
- * whole-library classification pass needs keeps the other twelve — the stored
+ * whole-library classification pass needs keeps the other sixteen — the stored
  * text above all — out of memory entirely.
  */
 data class DocumentOpening(
