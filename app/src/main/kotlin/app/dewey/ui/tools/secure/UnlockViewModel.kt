@@ -62,7 +62,7 @@ class UnlockViewModel(private val toolkit: PdfToolkit) : ViewModel() {
                 target = target,
                 sizeBytes = source.sizeBytes,
                 password = current.password,
-            )
+            ).onFailure { toolkit.discardOutput(target) }
             _state.value = _state.value.afterRun(result, target)
         }
     }

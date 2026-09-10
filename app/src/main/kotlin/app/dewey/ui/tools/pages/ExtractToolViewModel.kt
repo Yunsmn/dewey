@@ -63,7 +63,7 @@ class ExtractToolViewModel(private val toolkit: PdfToolkit) : ViewModel() {
                         onFailure = { Result.failure(it) },
                     )
                 }
-            }.flatten()
+            }.flatten().onFailure { toolkit.discardOutput(target) }
 
             _state.value = _state.value.copy(
                 runState = result.fold(

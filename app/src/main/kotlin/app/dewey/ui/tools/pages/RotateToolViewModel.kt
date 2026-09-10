@@ -73,7 +73,7 @@ class RotateToolViewModel(private val toolkit: PdfToolkit) : ViewModel() {
                     onSuccess = { saveOpenDocument(document, toolkit.resolver, target) },
                     onFailure = { Result.failure(it) },
                 )
-            }.flatten()
+            }.flatten().onFailure { toolkit.discardOutput(target) }
 
             _state.value = _state.value.copy(
                 runState = result.fold(

@@ -18,7 +18,8 @@ it is called `2847373.pdf`. Dewey is built around that gap.
 - Document scanner with edge detection, perspective correction, multi-page capture
 - OCR over scanned pages
 - PDF viewer
-- PDF toolkit: merge, split, rotate, reorder, compress
+- PDF toolkit: merge; extract, rotate, reorder and delete pages; PDF to images
+  and images to PDF; compress; add or remove a password; watermark; page numbers
 - Local search across everything you've stored
 
 **The Librarian — a paid tier, gated by a RevenueCat entitlement.**
@@ -253,7 +254,13 @@ Kept current and honest.
 - [x] Stage 5 — RevenueCat paywall. Test Store, so purchases are simulated and
       earn nothing — see [Cloud access](#cloud-access-firebase-ai-logic) below
       for why that is deliberate rather than unfinished.
-- [~] Stage 6 — PDF toolkit. In progress.
+- [~] Stage 6 — PDF toolkit. Thirteen tools behind a Tools tab, each writing a
+      new file and never over the original. Checked on the emulator by reading
+      the output bytes back: compress (which says so when the result comes out
+      larger), add a password (AES, no readable text left in the file), remove a
+      password (a wrong one fails and leaves no empty file behind), watermark and
+      page numbers. Merge, extract, rotate, reorder, delete pages, the image
+      conversions and the scanner are unit-tested but not yet run on a device.
 
 Measured, not asserted: retrieval is 81% recall@1 and 95% recall@3 over the test
 corpus; classification files 97 of 100 documents with none wrong, across thirteen categories, and the app also learns

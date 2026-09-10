@@ -2,9 +2,8 @@ package app.dewey.ui.scan
 
 import android.content.ContentResolver
 import android.net.Uri
-import android.provider.DocumentsContract
-import android.util.Log
 import app.dewey.io.copyBounded
+import app.dewey.io.deleteDocumentQuietly
 import java.io.FileNotFoundException
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
@@ -69,23 +68,12 @@ class ContentResolverScanFileCopy(private val resolver: ContentResolver) : ScanF
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            cleanUpBrokenTarget(target)
+            resolver.deleteDocumentQuietly(target)
             throw e
         }
     }
 
-    /** Best-effort removal of the empty or partial file a failed copy left behind. */
-    private fun cleanUpBrokenTarget(target: Uri) {
-        try {
-            DocumentsContract.deleteDocument(resolver, target)
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not remove the incomplete save at $target", e)
-        }
-    }
-
     private companion object {
-        const val TAG = "ScanFileCopy"
-
         /**
          * A generous ceiling, not a real expectation: [app.dewey.scan.DocumentScanner]
          * caps a scan at 30 pages, so this exists to fail loudly on something
