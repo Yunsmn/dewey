@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Search
@@ -35,24 +36,28 @@ import app.dewey.ui.components.BottomNav
 import app.dewey.ui.components.NavDestination
 import app.dewey.ui.search.SearchViewModel
 import app.dewey.ui.theme.Dewey
+import app.dewey.ui.tools.ToolsHubScreen
 
 private object Routes {
     const val LIBRARY = "library"
     const val SEARCH = "search"
     const val BILLS = "bills"
+    const val TOOLS = "tools"
 }
 
 /**
- * The three destinations, in the order they appear in the bar.
+ * The four destinations, in the order they appear in the bar.
  *
- * Three, not the four the design mock showed. Notes and the PDF toolkit are not
- * built — the toolkit was cut deliberately — and a tab that opens an empty
- * screen costs more trust than the tab was ever going to earn.
+ * Tools is the fourth now that there are tools behind it. It was held back
+ * while the PDF toolkit did not exist, because a tab that opens an empty screen
+ * costs more trust than it earns. Notes, which the design mock also showed,
+ * still does not exist and still has no tab.
  */
 private val Destinations = listOf(
     NavDestination(Routes.LIBRARY, "Library", Icons.Outlined.Home),
     NavDestination(Routes.BILLS, "Bills", Icons.Outlined.Receipt),
     NavDestination(Routes.SEARCH, "Find", Icons.Outlined.Search),
+    NavDestination(Routes.TOOLS, "Tools", Icons.Outlined.Build),
 )
 
 @Composable
@@ -96,6 +101,9 @@ fun DeweyApp(container: AppContainer) {
                     viewModel = model,
                     onOpenDocument = onOpenDocument,
                 )
+            }
+            composable(Routes.TOOLS) {
+                ToolsHubScreen(onOpen = { tool -> navController.navigate(tool.route) })
             }
             composable(Routes.BILLS) {
                 val model: BillsViewModel = viewModel(factory = BillsViewModel.factory(container))

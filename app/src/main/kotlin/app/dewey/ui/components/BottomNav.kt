@@ -85,7 +85,7 @@ fun BottomNav(
         for (destination in destinations) {
             NavItem(
                 destination = destination,
-                selected = destination.route == current,
+                selected = isRouteSelected(current = current, tab = destination.route),
                 onClick = { onSelect(destination.route) },
             )
         }
@@ -136,3 +136,14 @@ private fun NavItem(
         )
     }
 }
+
+/**
+ * Whether the tab at [tab] should show as active while [current] is on screen.
+ *
+ * Not plain equality. A tab owns everything beneath it — the Tools tab stays
+ * lit while the merge screen is open, since that is where the user came from
+ * and where back will return them. The slash matters: without it a tab routed
+ * "tools" would also claim an unrelated "toolsettings".
+ */
+fun isRouteSelected(current: String?, tab: String): Boolean =
+    current != null && (current == tab || current.startsWith("$tab/"))
