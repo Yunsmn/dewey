@@ -1,5 +1,6 @@
 package app.dewey.ui.documents
 
+import app.dewey.assistant.DocumentAssistant
 import app.dewey.cloud.AnswerComposer
 import app.dewey.cloud.AnswerResult
 import app.dewey.cloud.RetrievedPassage
@@ -54,10 +55,17 @@ class AskViewModelTest {
         composer: AnswerComposer = FakeComposer(),
         testScheduler: TestCoroutineScheduler,
     ) = AskViewModel(
+        assistant = DocumentAssistant(
+            embedderProvider = { embedder },
+            search = search,
+            resolveDocument = resolveDocument,
+            composer = composer,
+            tryConsumeQuota = { true },
+            releaseQuota = {},
+        ),
         embedderProvider = { embedder },
         search = search,
         resolveDocument = resolveDocument,
-        composer = composer,
         io = UnconfinedTestDispatcher(testScheduler),
     )
 

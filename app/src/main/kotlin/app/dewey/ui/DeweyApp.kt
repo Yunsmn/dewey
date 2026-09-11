@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import app.dewey.di.AppContainer
 import app.dewey.domain.model.Document
+import app.dewey.ui.assistant.AssistantScreen
 import app.dewey.ui.billing.LibrarianGate
 import app.dewey.ui.components.BottomNav
 import app.dewey.ui.components.NavDestination
@@ -38,12 +41,16 @@ import app.dewey.ui.notes.NotesScreen
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.tools.ToolDestination
 import app.dewey.ui.tools.ToolScreen
+import app.dewey.widgets.WidgetActions
 
 internal object Routes {
     const val HOME = "home"
     const val DOCUMENTS = "documents"
     const val NOTES = "notes"
     const val ME = "me"
+
+    /** Not a tab: a full-screen conversation opened from Home's top bar. */
+    const val ASSISTANT = "assistant"
 
     const val CATEGORY_ARG = "category"
     const val DOCUMENTS_PATTERN = "$DOCUMENTS?$CATEGORY_ARG={$CATEGORY_ARG}"
@@ -80,8 +87,17 @@ private val Destinations = listOf(
     NavDestination(Routes.ME, "Me", Icons.Rounded.Person),
 )
 
+/**
+ * @param launchAction what a home-screen widget opened the app to do, if
+ *   anything — see [WidgetActions]. Acted on once, then reported through
+ *   [onLaunchActionHandled] so it does not fire again on recomposition.
+ */
 @Composable
-fun DeweyApp(container: AppContainer) {
+fun DeweyApp(
+    container: AppContainer,
+    launchAction: String? = null,
+    onLaunchActionHandled: () -> Unit = {},
+) {
     val navController = rememberNavController()
     val context = LocalContext.current
 
@@ -104,7 +120,8 @@ fun DeweyApp(container: AppContainer) {
     val onOpenDocument: (Document) -> Unit = { document -> openUri(document.uri) }
 
     val backStack by navController.currentBackStackEntryAsState()
-    val currentTab = tabForRoute(backStack?.destination?.route)
+    val currentRoute = backStack?.destination?.route
+    val currentTab = tabForRoute(currentRoute)
 
     // Tabs, not a stack. Without popUpTo, moving between them piles up back
     // entries and the system back gesture walks a history nobody built on
@@ -125,8 +142,7 @@ fun DeweyApp(container: AppContainer) {
                 HomeScreen(
                     container = container,
                     onOpenTool = { tool -> navController.navigate(tool.route) },
-                    // The assistant lives in the Documents ask bar until it has a screen of its own.
-                    onOpenAssistant = { openTab(Routes.DOCUMENTS) },
+                    onOpenAssistant = { navController.navigate(Routes.ASSISTANT) { launchSingleTop = true } },
                     onOpenMe = { openTab(Routes.ME) },
                     onOpenFile = openUri,
                     onOpenBills = { openTab(Routes.NOTES) },
@@ -163,6 +179,23 @@ fun DeweyApp(container: AppContainer) {
             composable(Routes.ME) {
                 MeScreen(container = container)
             }
+            composable(Routes.ASSISTANT) {
+                // Home only opens this for subscribers, but a subscription can
+                // lapse while the app is open, so the screen is gated as well.
+                LibrarianGate(
+                    entitlements = container.entitlements,
+                    icon = Icons.Rounded.AutoAwesome,
+                    hue = Dewey.colors.hues.assistant,
+                    title = "Ask your documents",
+                    blurb = "Questions answered from what is actually in your files, with the documents it used.",
+                ) {
+                    AssistantScreen(
+                        container = container,
+                        onOpenDocument = onOpenDocument,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+            }
             // One destination per tool, generated from the same enum Home's
             // grid lists, so the two cannot disagree about what exists.
             for (tool in ToolDestination.entries) {
@@ -172,14 +205,29 @@ fun DeweyApp(container: AppContainer) {
             }
         }
 
-        BottomNav(
-            destinations = Destinations,
-            current = currentTab,
-            onSelect = { route -> if (route != currentTab) openTab(route) },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        )
+        // Hidden in the assistant: it is a full-screen conversation with its
+        // own input bar at the bottom, which the floating tab bar would cover.
+        if (currentRoute != Routes.ASSISTANT) {
+            BottomNav(
+                destinations = Destinations,
+                current = currentTab,
+                onSelect = { route -> if (route != currentTab) openTab(route) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+        }
+    }
+
+    // After the NavHost, so its graph is set before a widget's action
+    // navigates within it.
+    LaunchedEffect(launchAction) {
+        when (launchAction) {
+            WidgetActions.OPEN_SCAN -> navController.navigate(ToolDestination.SCAN.route) { launchSingleTop = true }
+            WidgetActions.OPEN_NOTES -> openTab(Routes.NOTES)
+            else -> return@LaunchedEffect
+        }
+        onLaunchActionHandled()
     }
 }

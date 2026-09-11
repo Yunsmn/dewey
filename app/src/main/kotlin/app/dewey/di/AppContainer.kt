@@ -5,6 +5,9 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import app.dewey.BuildConfig
+import app.dewey.assistant.AssistantQuota
+import app.dewey.assistant.DocumentAssistant
+import app.dewey.assistant.assistantQuotaStore
 import app.dewey.classify.DocumentClassifier
 import app.dewey.billing.Entitlements
 import app.dewey.cloud.AnswerComposer
@@ -105,6 +108,26 @@ class AppContainer(private val context: Context) {
 
     /** Whether the paid tier is available — see [app.dewey.billing.Entitlements]. */
     val entitlements: Entitlements by lazy { Entitlements(context) }
+
+    /** The shared daily cap on cloud questions — see [AssistantQuota]. */
+    val assistantQuota: AssistantQuota by lazy { AssistantQuota(context.assistantQuotaStore) }
+
+    /**
+     * The retrieval-and-answer pipeline behind both the Documents ask bar and
+     * the full-screen assistant — see [DocumentAssistant]. One instance, so
+     * [assistantQuota] is genuinely shared rather than each screen holding its
+     * own idea of what is left today.
+     */
+    val documentAssistant: DocumentAssistant by lazy {
+        DocumentAssistant(
+            embedderProvider = { embedder },
+            search = documentSearch::search,
+            resolveDocument = documentRepository::byId,
+            composer = answerComposer,
+            tryConsumeQuota = assistantQuota::tryConsume,
+            releaseQuota = assistantQuota::release,
+        )
+    }
 
     /** Scans and tool results, newest first, for Home — see [RecentFiles]. */
     val recentFiles: RecentFiles by lazy { RecentFiles(context.recentFilesStore, context.contentResolver) }

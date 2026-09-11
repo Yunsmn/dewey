@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A receipt: a pale zigzag-bottomed slip with three bold printed lines.
+     Tinted at draw time via ColorFilter.tint - see app.dewey.widgets.WidgetColors. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FF000000" android:fillAlpha="0.35"
+        android:pathData="M5,3 L19,3 L19,18 L17,20 L15,18 L13,20 L11,18 L9,20 L7,18 L5,20 Z" />
+    <path android:fillColor="#FF000000"
+        android:pathData="M7.5,7 L16.5,7 L16.5,8.6 L7.5,8.6 Z" />
+    <path android:fillColor="#FF000000"
+        android:pathData="M7.5,10.4 L16.5,10.4 L16.5,12 L7.5,12 Z" />
+    <path android:fillColor="#FF000000"
+        android:pathData="M7.5,13.8 L13,13.8 L13,15.4 L7.5,15.4 Z" />
+</vector>

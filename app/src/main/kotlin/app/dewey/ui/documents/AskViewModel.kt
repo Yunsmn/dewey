@@ -3,8 +3,8 @@ package app.dewey.ui.documents
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import app.dewey.cloud.AnswerComposer
-import app.dewey.cloud.AnswerResult
+import app.dewey.assistant.AssistantReply
+import app.dewey.assistant.DocumentAssistant
 import app.dewey.di.AppContainer
 import app.dewey.domain.model.Document
 import app.dewey.index.DocumentSearch
@@ -49,24 +49,26 @@ sealed interface AnswerUiState {
  * Two things share one text field and run independently: [onQueryChanged]
  * debounces into the same search-as-you-type retrieval
  * [app.dewey.ui.search.SearchViewModel] uses, and [onAsk] is the deliberate
- * next step — the retrieved passages handed to [composer] rather than a
- * document list. [search] and [resolveDocument] are the exact calls
- * `container.documentSearch.search` and `container.documentRepository.byId`
- * make (see [factory]); they arrive as functions here so a test can supply
- * one without a real database. [embedderProvider] is a provider rather than
- * an [Embedder] for the same reason `SearchViewModel` takes one: constructing
- * it unpacks a hundred-megabyte model the free tier must never pay for just by
- * opening this screen.
+ * next step, handed off entirely to [assistant] — see [DocumentAssistant] for
+ * the retrieval-and-answer pipeline that used to live in this class, and for
+ * why it also gates the shared daily question cap. [search] and
+ * [resolveDocument] are the exact calls `container.documentSearch.search` and
+ * `container.documentRepository.byId` make (see [factory]) — they stay here,
+ * separately from [assistant], purely for [runSearch]'s own search-as-you-type
+ * results. [embedderProvider] is a provider rather than an [Embedder] for the
+ * same reason `SearchViewModel` takes one: constructing it unpacks a
+ * hundred-megabyte model the free tier must never pay for just by opening
+ * this screen.
  *
  * [io] is where both the debounced search and the ask both run — overridable
  * so a test can supply a [kotlinx.coroutines.test.TestDispatcher] tied to its
  * own virtual clock, the same reason `ScanViewModel` takes one for [io].
  */
 class AskViewModel(
+    private val assistant: DocumentAssistant,
     private val embedderProvider: () -> Embedder,
     private val search: suspend (queryText: String, queryVector: FloatArray, limit: Int) -> List<DocumentSearch.Hit>,
     private val resolveDocument: suspend (Long) -> Document?,
-    private val composer: AnswerComposer,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
 
@@ -138,31 +140,14 @@ class AskViewModel(
     }
 
     private suspend fun runAsk(question: String) {
-        try {
-            _answerState.value = AnswerUiState.Preparing
-            val embedder = embedderProvider()
-            _answerState.value = AnswerUiState.Thinking
-            val vector = embedder.embedQuery(question)
-            val hits = search(question, vector, HIT_LIMIT)
-            val passages = hitsToPassages(hits, ANSWER_PASSAGE_LIMIT)
-
-            if (passages.isEmpty()) {
-                _answerState.value = AnswerUiState.Failed(NOTHING_RELATED_MESSAGE)
-                return
-            }
-
-            _answerState.value = when (val result = composer.answer(question, passages)) {
-                is AnswerResult.Answered -> AnswerUiState.Answered(
-                    text = result.text,
-                    sources = passages.map { it.documentId }.distinct().mapNotNull { resolveDocument(it) },
-                )
-
-                is AnswerResult.Failure -> AnswerUiState.Failed(result.plainMessage())
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            _answerState.value = AnswerUiState.Failed(COULD_NOT_ASK_MESSAGE)
+        _answerState.value = when (val reply = assistant.ask(
+            question = question,
+            onPreparing = { _answerState.value = AnswerUiState.Preparing },
+            onThinking = { _answerState.value = AnswerUiState.Thinking },
+        )) {
+            is AssistantReply.Answered -> AnswerUiState.Answered(text = reply.text, sources = reply.sources)
+            is AssistantReply.Failed -> AnswerUiState.Failed(reply.message)
+            AssistantReply.LimitReached -> AnswerUiState.Failed(DocumentAssistant.LIMIT_REACHED_MESSAGE)
         }
     }
 
@@ -174,20 +159,18 @@ class AskViewModel(
         private const val HIT_LIMIT = 40
         private const val RESULT_LIMIT = 12
 
-        /** Matches [app.dewey.cloud.AnswerPromptBuilder.MAX_PASSAGES]. */
-        internal const val ANSWER_PASSAGE_LIMIT = 8
-
-        internal const val NOTHING_RELATED_MESSAGE = "Nothing in your documents looks related to that."
-        internal const val COULD_NOT_ASK_MESSAGE = "Couldn't ask that just now. Try again."
+        /** Kept as pass-throughs so existing call sites and tests need not know these moved to [DocumentAssistant]. */
+        internal const val NOTHING_RELATED_MESSAGE = DocumentAssistant.NOTHING_RELATED_MESSAGE
+        internal const val COULD_NOT_ASK_MESSAGE = DocumentAssistant.COULD_NOT_ASK_MESSAGE
 
         fun factory(container: AppContainer) = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
                 AskViewModel(
+                    assistant = container.documentAssistant,
                     embedderProvider = { container.embedder },
                     search = container.documentSearch::search,
                     resolveDocument = container.documentRepository::byId,
-                    composer = container.answerComposer,
                 ) as T
         }
     }

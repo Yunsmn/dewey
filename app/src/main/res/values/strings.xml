@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">Dewey</string>
+
+    <!-- Home-screen widgets - see app.dewey.widgets. -->
+    <string name="widget_scan_label">Quick scan</string>
+    <string name="widget_scan_description">Open the scanner straight from your home screen.</string>
+    <string name="widget_bills_label">Bills</string>
+    <string name="widget_bills_description">See your next bills due, right on your home screen.</string>
+    <string name="widget_notes_label">Notes</string>
+    <string name="widget_notes_description">Your pinned and recent notes, right on your home screen.</string>
 </resources>

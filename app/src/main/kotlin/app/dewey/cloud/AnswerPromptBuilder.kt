@@ -51,6 +51,11 @@ object AnswerPromptBuilder {
      * from them. Grounding the model in what was retrieved — rather than
      * letting it fall back on training data — is what makes "answered from
      * your documents" a true claim rather than a hopeful one.
+     *
+     * The numbered labels are for the model, not the reader, so it is told
+     * not to repeat them: on the emulator an answer about bills cited
+     * "(Passage 3)" beside each one, which means nothing to a person who
+     * never saw the prompt.
      */
     fun build(question: String, passages: List<RetrievedPassage>): String {
         val passageBlock = cap(passages)
@@ -59,9 +64,12 @@ object AnswerPromptBuilder {
             .ifEmpty { "(no passages were retrieved)" }
 
         return """
-            Answer the question using only the passages below. Do not use outside
-            knowledge. If the passages do not contain the answer, say so plainly
-            instead of guessing.
+            Answer the question using only the passages below, which come from the
+            reader's own documents. Do not use outside knowledge. If the passages
+            do not contain the answer, say so plainly instead of guessing.
+
+            Write for the person who owns these documents: answer directly, and
+            never mention passages, passage numbers, or "the provided text".
 
             Question: $question
 

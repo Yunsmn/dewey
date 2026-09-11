@@ -62,5 +62,44 @@
                 android:value="androidx.startup"
                 tools:node="remove" />
         </provider>
+
+        <!-- Home-screen widgets - see app.dewey.widgets. Each receiver is
+             exported because the broadcast that drives it (APPWIDGET_UPDATE)
+             comes from the system, a different app entirely. -->
+        <receiver
+            android:name=".widgets.scan.ScanWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_scan_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_scan_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.bills.BillsWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_bills_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_bills_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.notes.NotesWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_notes_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_notes_info" />
+        </receiver>
     </application>
 </manifest>

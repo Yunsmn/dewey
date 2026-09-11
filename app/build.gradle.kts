@@ -264,6 +264,9 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    // Home-screen widgets - see app.dewey.widgets.
+    implementation(libs.androidx.glance.appwidget)
+
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)

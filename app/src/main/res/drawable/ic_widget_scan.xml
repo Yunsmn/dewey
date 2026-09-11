@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A viewfinder: four corner brackets and a scan line through the middle.
+     Tinted at draw time via ColorFilter.tint - see app.dewey.widgets.WidgetColors. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FF000000"
+        android:pathData="M4,4 L10,4 L10,6 L6,6 L6,10 L4,10 Z" />
+    <path android:fillColor="#FF000000"
+        android:pathData="M20,4 L14,4 L14,6 L18,6 L18,10 L20,10 Z" />
+    <path android:fillColor="#FF000000"
+        android:pathData="M4,20 L4,14 L6,14 L6,18 L10,18 L10,20 Z" />
+    <path android:fillColor="#FF000000"
+        android:pathData="M20,20 L20,14 L18,14 L18,18 L14,18 L14,20 Z" />
+    <path android:fillColor="#FF000000" android:fillAlpha="0.9"
+        android:pathData="M4,11 L20,11 L20,13 L4,13 Z" />
+</vector>

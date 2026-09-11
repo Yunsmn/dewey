@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A note: a pale page with a folded corner and three bold written lines.
+     Tinted at draw time via ColorFilter.tint - see app.dewey.widgets.WidgetColors. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FF000000" android:fillAlpha="0.35"
+        android:pathData="M5,3 L15,3 L19,7 L19,21 L5,21 Z" />
+    <path android:fillColor="#FF000000" android:fillAlpha="0.6"
+        android:pathData="M15,3 L19,7 L15,7 Z" />
+    <path android:fillColor="#FF000000"
+        android:pathData="M7,10 L17,10 L17,11.6 L7,11.6 Z" />
+    <path android:fillColor="#FF000000"
+        android:pathData="M7,13.4 L17,13.4 L17,15 L7,15 Z" />
+    <path android:fillColor="#FF000000"
+        android:pathData="M7,16.8 L13,16.8 L13,18.4 L7,18.4 Z" />
+</vector>

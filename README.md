@@ -17,22 +17,25 @@ it is called `2847373.pdf`. Dewey is built around that gap.
 
 - Document scanner with edge detection, perspective correction, multi-page capture
 - OCR over scanned pages
-- PDF viewer
 - PDF toolkit: merge; extract, rotate, reorder and delete pages; PDF to images
   and images to PDF; compress; add or remove a password; watermark; page numbers
-- Local search across everything you've stored
+- Recent scans and tool results on Home, and a Quick scan home-screen widget
 
 **The Librarian — a paid tier, gated by a RevenueCat entitlement.**
 
-- **Sort.** Point it at a folder. It reads every PDF, works out what each one is,
-  creates folders, and moves them. Files it isn't sure about go to a review queue
-  rather than interrupting you four hundred times.
-- **Find.** Ask for a document by what it was about, not what it was named.
-- **Bills.** Detected bills and invoices, with vendor, amount and due date pulled
-  out, grouped by how soon they are due. Opens the source PDF from the entry.
+- **Documents.** Link a folder and browse it by category. Find a document by what
+  it was about, not what it was named.
+- **Sort.** It reads every PDF, works out what each one is, creates folders, and
+  moves them. Files it isn't sure about go to a review queue rather than
+  interrupting you four hundred times, and the whole sort can be undone.
+- **Ask.** An assistant that answers questions from what is actually in your
+  files, and shows the documents it used. Capped at 50 questions a day.
+- **Bills and notes.** Detected bills with vendor, amount and due date, grouped
+  by how soon they are due, and notes of your own, standalone or attached to a
+  bill. Both are also home-screen widgets.
 
-The free tier is deliberately a complete app. The paywall is the agent and
-nothing else.
+The free tier is deliberately a complete scanner and PDF app. What the paywall
+sells is the part that reads your documents for you.
 
 ---
 
@@ -128,9 +131,11 @@ starts it.
 
 ### Purchases: RevenueCat, on the Test Store
 
-The paid tier is gated by a RevenueCat entitlement, and the paywall is
-RevenueCat-hosted so its copy and prices come from the dashboard rather than
-from a build.
+The paid tier is gated by a RevenueCat entitlement. The paywall is drawn by the
+app, in its own design, but the offering and every price on it come live from
+the RevenueCat dashboard: nothing is hardcoded, the "Save N%" badge is computed
+from the two products' actual prices, and a free trial is only mentioned when a
+product has one. Buying goes through the SDK's own purchase flow.
 
 **Purchases are simulated.** This entry is judged on a repo and a video and is
 never going to a store, so it uses RevenueCat's Test Store: a self-contained
@@ -254,7 +259,18 @@ Kept current and honest.
 - [x] Stage 5 — RevenueCat paywall. Test Store, so purchases are simulated and
       earn nothing — see [Cloud access](#cloud-access-firebase-ai-logic) below
       for why that is deliberate rather than unfinished.
-- [~] Stage 6 — PDF toolkit. Thirteen tools behind a Tools tab, each writing a
+- [x] Stage 7 — the app as it is now: four tabs (Home, Documents, Notes, Me) in
+      light and dark, a hand-built paywall, notes attached to bills, a
+      full-screen assistant, and home-screen widgets. Checked on the emulator:
+      both themes; a Test Store purchase through the new paywall unlocking the
+      paid tabs; a database upgrade keeping existing documents; a note attached
+      to a bill and counted on it; the assistant answering bill questions from
+      the documents in about 9 seconds and counting down its daily 50; the
+      three widgets registered, with their taps opening the scanner and Notes.
+      Not yet checked: the paywall's "Welcome to Librarian" confirmation since
+      the paywall moved out of the locked tabs, and the widgets placed on a
+      real launcher rather than opened by intent.
+- [~] Stage 6 — PDF toolkit. Thirteen tools on Home, each writing a
       new file and never over the original. Checked on the emulator by reading
       the output bytes back: compress (which says so when the result comes out
       larger), add a password (AES, no readable text left in the file), remove a
