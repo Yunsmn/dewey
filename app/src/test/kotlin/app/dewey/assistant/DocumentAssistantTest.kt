@@ -3,11 +3,11 @@ package app.dewey.assistant
 import app.dewey.cloud.AnswerComposer
 import app.dewey.cloud.AnswerResult
 import app.dewey.cloud.RetrievedPassage
+import app.dewey.cloud.plainMessage
 import app.dewey.domain.model.DocType
 import app.dewey.domain.model.Document
 import app.dewey.index.DocumentSearch
 import app.dewey.index.Embedder
-import app.dewey.ui.documents.plainMessage
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -38,8 +38,10 @@ class DocumentAssistantTest {
 
     private val document = Document(1, "u1", "insurance.pdf", 0, 0, docType = DocType.INSURANCE)
 
-    private fun hit(documentId: Long = 1, text: String = "passage") =
-        DocumentSearch.Hit(documentId, chunkId = 0, text = text, score = 0.9)
+    private fun hit(documentId: Long = 1, text: String = "passage", score: Double = 0.9) =
+        DocumentSearch.Hit(documentId, chunkId = 0, text = text, score = score)
+
+    private fun document(id: Long) = Document(id, "u1", "doc-$id.pdf", 0, 0, docType = DocType.INSURANCE)
 
     private fun assistant(
         embedder: Embedder = FakeEmbedder(),
@@ -80,6 +82,23 @@ class DocumentAssistantTest {
 
         assertThat(reply).isEqualTo(AssistantReply.Failed(DocumentAssistant.NOTHING_RELATED_MESSAGE))
         assertThat(consumeCalls).isEqualTo(0)
+    }
+
+    @Test
+    fun `a composer that throws gives the question back and replies with a plain failure`() = runTest {
+        var consumeCalls = 0
+        var releaseCalls = 0
+        val instance = assistant(
+            composer = FakeComposer(onAnswer = { _, _ -> throw IllegalStateException("sdk blew up") }),
+            tryConsumeQuota = { consumeCalls++; true },
+            releaseQuota = { releaseCalls++ },
+        )
+
+        val reply = instance.ask("When does my insurance renew?")
+
+        assertThat(reply).isEqualTo(AssistantReply.Failed(DocumentAssistant.COULD_NOT_ASK_MESSAGE))
+        assertThat(consumeCalls).isEqualTo(1)
+        assertThat(releaseCalls).isEqualTo(1)
     }
 
     @Test
@@ -149,5 +168,59 @@ class DocumentAssistantTest {
 
         assertThat(reply.sources).containsExactly(document)
         assertThat(resolveCalls).isEqualTo(1)
+    }
+
+    @Test
+    fun `sources are exactly the documents the answer cited, in citation order`() = runTest {
+        val documents = (1L..3L).associateWith { document(it) }
+        val instance = assistant(
+            search = { _, _, _ -> listOf(hit(1, "a"), hit(2, "b"), hit(3, "c")) },
+            resolveDocument = { id -> documents[id] },
+            // "Which bills are due soon?" only drew on passages 3 and 1 — the
+            // whole point of citing rather than listing every retrieved
+            // document.
+            composer = FakeComposer(onAnswer = { _, _ -> AnswerResult.Answered("Two bills.", citedDocumentIds = listOf(3L, 1L)) }),
+        )
+
+        val reply = instance.ask("Which bills are due soon?") as AssistantReply.Answered
+
+        assertThat(reply.sources).containsExactly(document(3), document(1)).inOrder()
+    }
+
+    @Test
+    fun `SOURCES colon none means no sources, not a guess`() = runTest {
+        var resolveCalls = 0
+        val instance = assistant(
+            search = { _, _, _ -> listOf(hit(1, "a")) },
+            resolveDocument = { resolveCalls++; document },
+            composer = FakeComposer(onAnswer = { _, _ -> AnswerResult.Answered("Not in your documents.", citedDocumentIds = emptyList()) }),
+        )
+
+        val reply = instance.ask("insurance") as AssistantReply.Answered
+
+        assertThat(reply.sources).isEmpty()
+        assertThat(resolveCalls).isEqualTo(0)
+    }
+
+    @Test
+    fun `an unparseable SOURCES line falls back to documents scoring close to the top hit`() = runTest {
+        val documents = (1L..3L).associateWith { document(it) }
+        val instance = assistant(
+            search = { _, _, _ ->
+                listOf(
+                    hit(1, "strong match", score = 1.0),
+                    hit(2, "close match", score = 0.9), // within 85% of the top score
+                    hit(3, "weak match", score = 0.5), // well below it
+                )
+            },
+            resolveDocument = { id -> documents[id] },
+            // citedDocumentIds left at its default (null): the model's
+            // SOURCES line was missing or unparseable.
+            composer = FakeComposer(onAnswer = { _, _ -> AnswerResult.Answered("An answer.") }),
+        )
+
+        val reply = instance.ask("insurance") as AssistantReply.Answered
+
+        assertThat(reply.sources).containsExactly(document(1), document(2))
     }
 }

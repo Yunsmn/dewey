@@ -4,6 +4,7 @@ import app.dewey.assistant.DocumentAssistant
 import app.dewey.cloud.AnswerComposer
 import app.dewey.cloud.AnswerResult
 import app.dewey.cloud.RetrievedPassage
+import app.dewey.cloud.plainMessage
 import app.dewey.domain.model.DocType
 import app.dewey.domain.model.Document
 import app.dewey.index.DocumentSearch

@@ -12,7 +12,18 @@ package app.dewey.cloud
  */
 sealed interface AnswerResult {
 
-    data class Answered(val text: String) : AnswerResult
+    /**
+     * @param citedDocumentIds the documents behind the passage numbers the
+     *   model listed on its trailing `SOURCES:` line — see
+     *   [parseAnswerSources] and [GeminiAnswerComposer] for how this is
+     *   built, and [app.dewey.assistant.DocumentAssistant] for how it becomes
+     *   what a person sees. `null` (the default, so existing callers and
+     *   tests that construct an [Answered] directly need not know about this)
+     *   means that line was missing or unparseable, not that nothing was
+     *   cited — see [ParsedAnswer] for why those are kept apart. An empty
+     *   list is the real "cited nothing".
+     */
+    data class Answered(val text: String, val citedDocumentIds: List<Long>? = null) : AnswerResult
 
     sealed interface Failure : AnswerResult {
 

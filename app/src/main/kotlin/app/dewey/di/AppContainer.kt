@@ -18,6 +18,8 @@ import app.dewey.data.recent.RecentFiles
 import app.dewey.data.recent.recentFilesStore
 import app.dewey.data.repository.DocumentRepository
 import app.dewey.data.repository.NotesRepository
+import app.dewey.data.settings.AppSettings
+import app.dewey.data.settings.appSettingsStore
 import app.dewey.data.storage.DocumentTreeStore
 import app.dewey.data.storage.SafDocumentSource
 import app.dewey.index.Chunker
@@ -108,6 +110,9 @@ class AppContainer(private val context: Context) {
 
     /** Whether the paid tier is available — see [app.dewey.billing.Entitlements]. */
     val entitlements: Entitlements by lazy { Entitlements(context) }
+
+    /** Whole-app settings — today, just the theme choice. See [AppSettings]. */
+    val appSettings: AppSettings by lazy { AppSettings(context.appSettingsStore) }
 
     /** The shared daily cap on cloud questions — see [AssistantQuota]. */
     val assistantQuota: AssistantQuota by lazy { AssistantQuota(context.assistantQuotaStore) }

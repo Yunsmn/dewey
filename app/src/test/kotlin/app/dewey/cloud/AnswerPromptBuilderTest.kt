@@ -1,6 +1,7 @@
 package app.dewey.cloud
 
 import com.google.common.truth.Truth.assertThat
+import java.time.LocalDate
 import org.junit.Test
 
 /**
@@ -85,15 +86,15 @@ class AnswerPromptBuilderTest {
     }
 
     @Test
-    fun `prompt includes passage text, labelled and in retrieval order`() {
+    fun `prompt includes excerpt text, labelled and in retrieval order`() {
         val prompt = AnswerPromptBuilder.build(
             "who is this from",
             listOf(passage(1, "first passage text"), passage(2, "second passage text")),
         )
 
-        assertThat(prompt).contains("[Passage 1]")
+        assertThat(prompt).contains("[Excerpt 1]")
         assertThat(prompt).contains("first passage text")
-        assertThat(prompt).contains("[Passage 2]")
+        assertThat(prompt).contains("[Excerpt 2]")
         assertThat(prompt).contains("second passage text")
         assertThat(prompt.indexOf("first passage text")).isLessThan(prompt.indexOf("second passage text"))
     }
@@ -102,7 +103,37 @@ class AnswerPromptBuilderTest {
     fun `prompt says plainly when there is nothing retrieved, rather than sending nothing`() {
         val prompt = AnswerPromptBuilder.build("anything", emptyList())
 
-        assertThat(prompt).contains("no passages were retrieved")
+        assertThat(prompt).contains("no document excerpts were found")
+    }
+
+    @Test
+    fun `the prompt itself never uses the word passage, so a reply has nothing to echo`() {
+        val prompt = AnswerPromptBuilder.build("anything", listOf(passage(1, "Lydec bill")))
+
+        assertThat(prompt.lowercase()).doesNotContain("passage")
+    }
+
+    @Test
+    fun `system instruction carries today's date, so due soon and overdue mean something`() {
+        val instruction = AnswerPromptBuilder.systemInstruction(LocalDate.of(2026, 9, 11))
+
+        assertThat(instruction).contains("2026-09-11")
+    }
+
+    @Test
+    fun `system instruction asks for a trailing SOURCES line naming the excerpts actually used`() {
+        val instruction = AnswerPromptBuilder.systemInstruction(LocalDate.of(2026, 9, 11))
+
+        assertThat(instruction).contains("SOURCES: 1, 3")
+        assertThat(instruction).contains("SOURCES: none")
+    }
+
+    @Test
+    fun `system instruction carries no document content, only standing rules`() {
+        val instruction = AnswerPromptBuilder.systemInstruction(LocalDate.of(2026, 9, 11))
+
+        assertThat(instruction).doesNotContain("Lydec")
+        assertThat(instruction.length).isLessThan(1_500)
     }
 
     @Test
@@ -111,8 +142,8 @@ class AnswerPromptBuilderTest {
 
         val prompt = AnswerPromptBuilder.build("q", passages)
 
-        // Some fixed overhead for the instructions and labels is expected; the
-        // passage content itself must still be bounded.
+        // Some fixed overhead for the labels is expected; the passage content
+        // itself must still be bounded.
         assertThat(prompt.length).isLessThan(AnswerPromptBuilder.MAX_TOTAL_CHARS + 2_000)
     }
 }

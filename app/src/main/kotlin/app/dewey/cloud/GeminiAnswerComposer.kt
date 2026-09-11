@@ -15,15 +15,19 @@ import com.google.firebase.ai.type.ResponseStoppedException
 import com.google.firebase.ai.type.UnknownException
 import com.google.firebase.ai.type.content
 import java.io.IOException
+import java.time.LocalDate
 
 /**
  * Answers a question from passages already retrieved on device, through
  * Gemini via Firebase AI Logic's Gemini Developer API backend.
  *
  * Only ever constructed behind `BuildConfig.HAS_FIREBASE` — see
- * [UnconfiguredAnswerComposer] for what runs otherwise. [model] is built
- * lazily so that constructing this class never touches Firebase; only calling
- * [answer] does, and by then a `FirebaseApp` is expected to exist.
+ * [UnconfiguredAnswerComposer] for what runs otherwise. Constructing this
+ * class never touches Firebase; only calling [answer] does, and by then a
+ * `FirebaseApp` is expected to exist. The model is built per question, not
+ * once, because its system instruction carries today's date — see
+ * [AnswerPromptBuilder.systemInstruction] — and a model built at launch would
+ * go on believing it is that day. Building one is cheap: no network.
  *
  * App Check is what stops anyone who finds this project id from spending its
  * quota — see docs/firebase-setup.md. A rejected token surfaces as
@@ -41,23 +45,43 @@ import java.io.IOException
  * which on a latency that uneven is often faster than waiting.
  */
 class GeminiAnswerComposer(
-    modelName: String = MODEL_NAME,
+    private val modelName: String = MODEL_NAME,
+    private val today: () -> LocalDate = LocalDate::now,
 ) : AnswerComposer {
 
-    private val model: GenerativeModel by lazy {
-        Firebase.ai(backend = GenerativeBackend.googleAI())
-            .generativeModel(modelName = modelName, requestOptions = RequestOptions(TIMEOUT_MILLIS))
-    }
+    /** One per question, with that day's date in its instructions — see the class doc. */
+    private fun modelFor(date: LocalDate): GenerativeModel =
+        Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
+            modelName = modelName,
+            systemInstruction = content { text(AnswerPromptBuilder.systemInstruction(date)) },
+            requestOptions = RequestOptions(TIMEOUT_MILLIS),
+        )
 
     override suspend fun answer(question: String, passages: List<RetrievedPassage>): AnswerResult {
-        val prompt = AnswerPromptBuilder.build(question, passages)
+        // Capped once, here, so the numbers [parseAnswerSources] resolves
+        // afterwards refer to the exact same list the prompt showed the
+        // model — [AnswerPromptBuilder.build] re-applies [AnswerPromptBuilder.cap]
+        // to this, but capping an already-capped list is a no-op.
+        val cappedPassages = AnswerPromptBuilder.cap(passages)
+        val prompt = AnswerPromptBuilder.build(question, cappedPassages)
 
         return try {
+            // Inside the try: a FirebaseApp that never initialised throws here,
+            // and that must become a state like any other failure.
+            val model = modelFor(today())
             val response = retryOnceOn(isRetryable = { it is RequestTimeoutException }) {
                 model.generateContent(content { text(prompt) })
             }
-            val text = response.text?.trim()
-            if (text.isNullOrEmpty()) AnswerResult.Failure.EmptyResponse else AnswerResult.Answered(text)
+            val rawText = response.text?.trim()
+            if (rawText.isNullOrEmpty()) {
+                AnswerResult.Failure.EmptyResponse
+            } else {
+                val parsed = parseAnswerSources(rawText, cappedPassages.size)
+                val citedDocumentIds = parsed.citedPassageNumbers
+                    ?.map { number -> cappedPassages[number - 1].documentId }
+                    ?.distinct()
+                AnswerResult.Answered(text = parsed.text, citedDocumentIds = citedDocumentIds)
+            }
         } catch (e: FirebaseAIException) {
             // Logged with its cause before it is reduced to a one-line state.
             // The user sees "no connection" or "took too long"; whoever debugs

@@ -11,7 +11,7 @@ import app.dewey.index.DocumentSearch
 import app.dewey.index.Embedder
 import app.dewey.search.SearchResult
 import app.dewey.search.SearchUiState
-import app.dewey.ui.search.bestPassagePerDocument
+import app.dewey.search.bestPassagePerDocument
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -47,18 +47,17 @@ sealed interface AnswerUiState {
  * Drives the Documents tab's ask bar.
  *
  * Two things share one text field and run independently: [onQueryChanged]
- * debounces into the same search-as-you-type retrieval
- * [app.dewey.ui.search.SearchViewModel] uses, and [onAsk] is the deliberate
+ * debounces into search-as-you-type retrieval, ranked one passage per document
+ * by [app.dewey.search.bestPassagePerDocument], and [onAsk] is the deliberate
  * next step, handed off entirely to [assistant] — see [DocumentAssistant] for
  * the retrieval-and-answer pipeline that used to live in this class, and for
  * why it also gates the shared daily question cap. [search] and
  * [resolveDocument] are the exact calls `container.documentSearch.search` and
  * `container.documentRepository.byId` make (see [factory]) — they stay here,
  * separately from [assistant], purely for [runSearch]'s own search-as-you-type
- * results. [embedderProvider] is a provider rather than an [Embedder] for the
- * same reason `SearchViewModel` takes one: constructing it unpacks a
- * hundred-megabyte model the free tier must never pay for just by opening
- * this screen.
+ * results. [embedderProvider] is a provider rather than an [Embedder] because
+ * constructing one unpacks a hundred-megabyte model, which nobody should pay
+ * for just by opening this screen.
  *
  * [io] is where both the debounced search and the ask both run — overridable
  * so a test can supply a [kotlinx.coroutines.test.TestDispatcher] tied to its
@@ -152,7 +151,11 @@ class AskViewModel(
     }
 
     companion object {
-        /** Same debounce as `SearchViewModel` — see its own note on the number. */
+        /**
+         * Long enough that a typed word does not start four searches, short
+         * enough to feel immediate. Embedding a query takes about 60ms, so this
+         * dominates the perceived latency and is the number worth tuning.
+         */
         private const val DEBOUNCE_MILLIS = 220L
 
         /** Chunks considered before collapsing to one row per document. */

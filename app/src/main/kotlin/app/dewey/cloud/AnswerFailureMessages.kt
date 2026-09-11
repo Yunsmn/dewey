@@ -1,6 +1,4 @@
-package app.dewey.ui.documents
-
-import app.dewey.cloud.AnswerResult
+package app.dewey.cloud
 
 /**
  * What to tell someone who asked a question and did not get an answer.

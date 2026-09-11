@@ -2,11 +2,11 @@ package app.dewey.assistant
 
 import app.dewey.cloud.AnswerComposer
 import app.dewey.cloud.AnswerResult
+import app.dewey.cloud.plainMessage
 import app.dewey.domain.model.Document
 import app.dewey.index.DocumentSearch
 import app.dewey.index.Embedder
-import app.dewey.ui.documents.hitsToPassages
-import app.dewey.ui.documents.plainMessage
+import app.dewey.search.bestPassagePerDocument
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -63,10 +63,10 @@ class DocumentAssistant(
         when {
             passages.isEmpty() -> AssistantReply.Failed(NOTHING_RELATED_MESSAGE)
             !tryConsumeQuota() -> AssistantReply.LimitReached
-            else -> when (val result = composer.answer(question, passages)) {
+            else -> when (val result = answerOrGiveBack(question, passages)) {
                 is AnswerResult.Answered -> AssistantReply.Answered(
                     text = result.text,
-                    sources = passages.map { it.documentId }.distinct().mapNotNull { resolveDocument(it) },
+                    sources = sourceDocumentIds(result.citedDocumentIds, hits).mapNotNull { resolveDocument(it) },
                 )
 
                 is AnswerResult.Failure -> {
@@ -82,12 +82,59 @@ class DocumentAssistant(
         AssistantReply.Failed(COULD_NOT_ASK_MESSAGE)
     }
 
+    /**
+     * [composer]'s answer, with the quota slot given back if it throws rather
+     * than returning a result: nothing came back to have paid for. A
+     * cancellation keeps the slot — the person asked something else, and the
+     * request they walked away from may already have been billed.
+     */
+    private suspend fun answerOrGiveBack(
+        question: String,
+        passages: List<app.dewey.cloud.RetrievedPassage>,
+    ): AnswerResult =
+        try {
+            composer.answer(question, passages)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            releaseQuota()
+            throw e
+        }
+
+    /**
+     * Which documents an answer should be shown alongside.
+     *
+     * [cited] is [AnswerResult.Answered.citedDocumentIds] — already resolved
+     * by [app.dewey.cloud.GeminiAnswerComposer] against the exact passages the
+     * prompt numbered, so a non-null value is trusted as-is. `null` means the
+     * model's `SOURCES:` line could not be read, and the honest fallback is
+     * not "every document any retrieved passage came from" — that is the bug
+     * this whole feature exists to fix — but the documents that were actually
+     * strong matches: within [FALLBACK_SCORE_RATIO] of the top hit's score.
+     */
+    private fun sourceDocumentIds(cited: List<Long>?, hits: List<DocumentSearch.Hit>): List<Long> {
+        if (cited != null) return cited
+
+        val perDocument = bestPassagePerDocument(hits)
+        val topScore = perDocument.firstOrNull()?.score ?: return emptyList()
+        return perDocument.filter { it.score >= topScore * FALLBACK_SCORE_RATIO }.map { it.documentId }
+    }
+
     companion object {
         /** Chunks considered before collapsing to one row per document. */
         private const val HIT_LIMIT = 40
 
         /** Matches [app.dewey.cloud.AnswerPromptBuilder.MAX_PASSAGES]. */
         internal const val ANSWER_PASSAGE_LIMIT = 8
+
+        /**
+         * How close to the top hit's score a document's best passage must be
+         * to count as a source when the model's own `SOURCES:` line could not
+         * be read — see [sourceDocumentIds]. Close enough to the top match to
+         * plausibly be what the answer drew on, without falling back to
+         * "every document retrieval touched at all".
+         */
+        private const val FALLBACK_SCORE_RATIO = 0.85
 
         const val NOTHING_RELATED_MESSAGE = "Nothing in your documents looks related to that."
         const val COULD_NOT_ASK_MESSAGE = "Couldn't ask that just now. Try again."

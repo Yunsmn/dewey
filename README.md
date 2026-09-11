@@ -267,9 +267,12 @@ Kept current and honest.
       to a bill and counted on it; the assistant answering bill questions from
       the documents in about 9 seconds and counting down its daily 50; the
       three widgets registered, with their taps opening the scanner and Notes.
-      Not yet checked: the paywall's "Welcome to Librarian" confirmation since
-      the paywall moved out of the locked tabs, and the widgets placed on a
-      real launcher rather than opened by intent.
+      Since then also checked: the paywall's "Welcome to Librarian"
+      confirmation after buying from a locked tab, the struck-through price
+      of a year paid monthly on the annual plan, the Me tab's settings and
+      theme switch, and the assistant citing only the documents an answer
+      used. Not yet checked: the widgets placed on a real launcher rather than
+      opened by intent.
 - [~] Stage 6 — PDF toolkit. Thirteen tools on Home, each writing a
       new file and never over the original. Checked on the emulator by reading
       the output bytes back: compress (which says so when the result comes out

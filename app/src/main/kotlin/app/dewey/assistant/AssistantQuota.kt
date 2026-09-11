@@ -9,10 +9,14 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import java.time.Clock
+import java.time.Duration
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZonedDateTime
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 
 /**
  * The day and count [AssistantQuota] has persisted, or null when nothing has
@@ -64,7 +68,23 @@ class AssistantQuota(
     private val zone: ZoneId = clock.zone,
 ) {
 
-    val remainingToday: Flow<Int> = store.data.map { prefs -> remaining(prefs.toRecord(), today(), DAILY_LIMIT) }
+    /**
+     * Recomputed at every local midnight as well as on every write. Mapping the
+     * store alone read "today" only when something was saved, so a screen left
+     * open overnight kept showing yesterday's count until the next question.
+     */
+    val remainingToday: Flow<Int> =
+        combine(store.data, dayTicks()) { prefs, today -> remaining(prefs.toRecord(), today, DAILY_LIMIT) }
+
+    /** Today's epoch day now, then again each time the local day rolls over. */
+    private fun dayTicks(): Flow<Long> = flow {
+        while (true) {
+            val now = ZonedDateTime.now(clock.withZone(zone))
+            emit(now.toLocalDate().toEpochDay())
+            val nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay(zone)
+            delay(Duration.between(now, nextMidnight).toMillis().coerceAtLeast(1))
+        }
+    }
 
     /** Spends one question of today's budget. False once [DAILY_LIMIT] is already spent today. */
     suspend fun tryConsume(): Boolean {

@@ -1,5 +1,7 @@
 package app.dewey.cloud
 
+import java.time.LocalDate
+
 /**
  * Builds the text sent to the cloud model, and is the one place that decides
  * what "only the retrieved passages" actually means in bytes.
@@ -46,34 +48,57 @@ object AnswerPromptBuilder {
     }
 
     /**
-     * The exact prompt sent to Gemini: the question, then each retained
-     * passage labelled by number, with an explicit instruction to answer only
-     * from them. Grounding the model in what was retrieved — rather than
-     * letting it fall back on training data — is what makes "answered from
-     * your documents" a true claim rather than a hopeful one.
+     * The model's standing instructions, sent as a system instruction rather
+     * than inside the question.
      *
-     * The numbered labels are for the model, not the reader, so it is told
-     * not to repeat them: on the emulator an answer about bills cited
-     * "(Passage 3)" beside each one, which means nothing to a person who
-     * never saw the prompt.
+     * Every line here was measured against the live model on 2026-09-11 with
+     * the question "Which bills are due soon?" over three 2023 electricity
+     * bills and a medical certificate. The earlier prompt, instructions and
+     * all in the user turn, got "The provided passages do not contain the
+     * answer" twice, with the word "passages" leaking into the reply. This
+     * version answered both times that all three bills were already overdue,
+     * with their dates and amounts, cited exactly those three, and never said
+     * "excerpt". What made the difference:
+     *
+     *  - **Today's date.** "Due soon" and "overdue" mean nothing to a model
+     *    that does not know when now is.
+     *  - **Saying what the documents do show** when nothing matches exactly,
+     *    instead of a flat "not found".
+     *  - **Calling them "your documents"** and the labels "excerpts", so there
+     *    is no prompt vocabulary for the reply to echo.
+     *
+     * The `SOURCES:` line is how [app.dewey.assistant.DocumentAssistant] learns
+     * which documents an answer relied on — see [parseAnswerSources].
+     */
+    fun systemInstruction(today: LocalDate): String = """
+        You are Dewey, an assistant that answers questions about the user's own documents.
+        Today's date is $today.
+        Use only the document excerpts you are given, never outside knowledge.
+        Speak to the user about "your documents" or "your bills"; never mention excerpts, excerpt numbers, passages or "the provided text".
+        If nothing matches the question exactly, say what the documents do show that is relevant, including dates and amounts, and say plainly when something is already overdue. Only if nothing at all is relevant, say you could not find it in their documents.
+        Keep answers short: a sentence or a short list.
+        End your reply with one final line and nothing after it, naming the excerpts you used, exactly like:
+        SOURCES: 1, 3
+        or, if you used none:
+        SOURCES: none
+    """.trimIndent()
+
+    /**
+     * The request itself: the question, then each retained passage labelled by
+     * number in retrieval order. Grounding the model in what was retrieved —
+     * rather than letting it fall back on training data — is what makes
+     * "answered from your documents" a true claim rather than a hopeful one.
+     *
+     * Numbering always matches [cap]'s output, since the model only ever sees
+     * the capped list; [GeminiAnswerComposer] resolves the `SOURCES:` numbers
+     * against that same list.
      */
     fun build(question: String, passages: List<RetrievedPassage>): String {
-        val passageBlock = cap(passages)
+        val excerptBlock = cap(passages)
             .withIndex()
-            .joinToString(separator = "\n\n") { (index, passage) -> "[Passage ${index + 1}]\n${passage.text}" }
-            .ifEmpty { "(no passages were retrieved)" }
+            .joinToString(separator = "\n\n") { (index, passage) -> "[Excerpt ${index + 1}]\n${passage.text}" }
+            .ifEmpty { "(no document excerpts were found)" }
 
-        return """
-            Answer the question using only the passages below, which come from the
-            reader's own documents. Do not use outside knowledge. If the passages
-            do not contain the answer, say so plainly instead of guessing.
-
-            Write for the person who owns these documents: answer directly, and
-            never mention passages, passage numbers, or "the provided text".
-
-            Question: $question
-
-            $passageBlock
-        """.trimIndent()
+        return "Question: $question\n\nDocument excerpts:\n\n$excerptBlock"
     }
 }

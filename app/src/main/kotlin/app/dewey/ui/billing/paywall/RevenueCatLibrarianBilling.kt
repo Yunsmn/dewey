@@ -96,10 +96,16 @@ private fun buildPlans(offering: Offering): List<PaywallPlan> {
         annualCurrencyCode = annual.product.price.currencyCode,
     )
 
-    return listOf(annualPlan(annual, savings), monthlyPlan(monthly))
+    // Only drawn when there is a real saving to set it against: with no saving
+    // a crossed-out price would be a discount that does not exist.
+    val yearOfMonthly = savings?.let {
+        yearOfMonthlyFormatted(monthly.product.price.amountMicros, monthly.product.price.currencyCode, Locale.getDefault())
+    }
+
+    return listOf(annualPlan(annual, savings, yearOfMonthly), monthlyPlan(monthly))
 }
 
-private fun annualPlan(annualPackage: Package, savingsPercent: Int?): PaywallPlan {
+private fun annualPlan(annualPackage: Package, savingsPercent: Int?, yearOfMonthly: String?): PaywallPlan {
     val product = annualPackage.product
     return PaywallPlan(
         id = annualPackage.identifier,
@@ -108,6 +114,7 @@ private fun annualPlan(annualPackage: Package, savingsPercent: Int?): PaywallPla
         periodLabel = periodLabel(product.period),
         pricePerMonthFormatted = product.pricePerMonth(Locale.getDefault())?.formatted,
         savingsPercent = savingsPercent,
+        yearOfMonthlyFormatted = yearOfMonthly,
         hasFreeTrial = product.hasFreeTrial(),
     )
 }

@@ -1,6 +1,5 @@
-package app.dewey.ui.documents
+package app.dewey.cloud
 
-import app.dewey.cloud.AnswerResult
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 

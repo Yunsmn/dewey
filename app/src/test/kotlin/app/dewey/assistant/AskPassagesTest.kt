@@ -1,4 +1,4 @@
-package app.dewey.ui.documents
+package app.dewey.assistant
 
 import app.dewey.cloud.RetrievedPassage
 import app.dewey.index.DocumentSearch

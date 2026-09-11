@@ -17,6 +17,9 @@ import android.app.Activity
  *   billed less often than monthly — an annual plan showing "$2.50".
  * @param savingsPercent set only on the annual plan, and only when it is
  *   worth saying out loud — see [annualSavingsPercent].
+ * @param yearOfMonthlyFormatted what a year of the monthly plan costs, drawn
+ *   crossed out on the annual card; set only alongside [savingsPercent] — see
+ *   [yearOfMonthlyFormatted].
  * @param hasFreeTrial whether the plan's default purchase option starts
  *   with a free phase. Always false on the Test Store, which cannot
  *   simulate one.
@@ -31,6 +34,7 @@ data class PaywallPlan(
     val periodLabel: String,
     val pricePerMonthFormatted: String? = null,
     val savingsPercent: Int? = null,
+    val yearOfMonthlyFormatted: String? = null,
     val hasFreeTrial: Boolean = false,
     val displayName: String? = null,
 )

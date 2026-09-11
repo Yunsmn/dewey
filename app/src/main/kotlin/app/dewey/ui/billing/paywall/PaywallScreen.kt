@@ -38,7 +38,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.dewey.ui.components.IconTile
@@ -337,6 +340,16 @@ private fun PlanCard(
             )
         }
         Spacer(Modifier.height(Dewey.spacing.tight))
+        plan.yearOfMonthlyFormatted?.let { yearOfMonthly ->
+            // Read aloud as what it is, not as a bare second price: a screen
+            // reader announcing "$71.88 $39.99" would suggest two charges.
+            Text(
+                yearOfMonthly,
+                style = Dewey.type.Meta.copy(textDecoration = TextDecoration.LineThrough),
+                color = Dewey.colors.inkFaint,
+                modifier = Modifier.semantics { contentDescription = "$yearOfMonthly a year if paid monthly" },
+            )
+        }
         Text("${plan.priceFormatted}/${plan.periodLabel}", style = Dewey.type.Title, color = Dewey.colors.ink)
         val perMonth = plan.pricePerMonthFormatted
         if (plan.kind == PaywallPlanKind.ANNUAL && perMonth != null) {
@@ -406,16 +419,17 @@ private fun fakePlans(): List<PaywallPlan> = listOf(
     PaywallPlan(
         id = "annual",
         kind = PaywallPlanKind.ANNUAL,
-        priceFormatted = "$29.99",
+        priceFormatted = "$39.99",
         periodLabel = "year",
-        pricePerMonthFormatted = "$2.50",
-        savingsPercent = 49,
+        pricePerMonthFormatted = "$3.33",
+        savingsPercent = 44,
+        yearOfMonthlyFormatted = "$71.88",
         hasFreeTrial = false,
     ),
     PaywallPlan(
         id = "monthly",
         kind = PaywallPlanKind.MONTHLY,
-        priceFormatted = "$4.99",
+        priceFormatted = "$5.99",
         periodLabel = "month",
         hasFreeTrial = false,
     ),
