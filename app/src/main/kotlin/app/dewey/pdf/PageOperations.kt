@@ -185,10 +185,10 @@ object PageOperations {
         }
 
     // -------------------------------------------------------------------
-    // PDFBox-level operations. Not unit-tested here — pdfbox-android needs
-    // more than a plain JVM to exercise meaningfully, and this project's
-    // unit tests run without Robolectric — but kept small on purpose: each
-    // one is the arithmetic above plus the minimum PDFBox calls to act on it.
+    // PDFBox-level operations: the arithmetic above plus the minimum PDFBox
+    // calls to act on it. Their page counts and order are tested against real
+    // in-memory documents in PageOperationsPdfBoxTest — "too thin to need a
+    // test" is how merge and extract shipped duplicating every page.
     // -------------------------------------------------------------------
 
     /**
@@ -197,8 +197,11 @@ object PageOperations {
      * Uses [PDDocument.importPage] rather than [PDDocument.addPage]: a page
      * still belongs to its source document's object graph (fonts, images,
      * the works), and `addPage` alone would leave [into] holding references
-     * into a document the caller is about to close. `importPage` deep-copies
-     * what the page needs and returns a page that belongs to [into].
+     * into a document the caller is about to close. `importPage` copies what
+     * the page needs and *appends it to [into] itself* — its bytecode calls
+     * `addPage` — so nothing here adds the returned page again. Wrapping it in
+     * a second `addPage` put every page in twice; found on the emulator, where
+     * extracting pages 1-3 of an 11-page PDF produced 1, 1, 2, 2, 3, 3.
      *
      * [Result.mapCatching], not [Result.map]: `importPage` is declared to
      * throw [java.io.IOException] on a malformed embedded resource, and
@@ -210,7 +213,7 @@ object PageOperations {
         validateMergeSourceCount(sources.size).mapCatching {
             for (source in sources) {
                 for (page in source.pages) {
-                    into.addPage(into.importPage(page))
+                    into.importPage(page)
                 }
             }
         }
@@ -219,7 +222,8 @@ object PageOperations {
     fun extract(source: PDDocument, spec: String, into: PDDocument): Result<Unit> =
         parsePageRange(spec, source.numberOfPages).mapCatching { indices ->
             for (index in indices) {
-                into.addPage(into.importPage(source.getPage(index)))
+                // importPage already appends the copy — see merge.
+                into.importPage(source.getPage(index))
             }
         }
 
