@@ -343,8 +343,8 @@ val offering = Purchases.sharedInstance.awaitOfferings().current
 Purchases.sharedInstance.awaitPurchase(PurchaseParams.Builder(activity, pkg).build())
 val info = Purchases.sharedInstance.awaitRestore()
 
-// Account.kt: the purchase follows the person, not the phone
-Purchases.sharedInstance.awaitLogIn(user.uid)
+// Entitlements.identify, on sign-in: the purchase follows the person
+Purchases.sharedInstance.awaitLogIn(userId)
 
 // MeScreen.kt: RevenueCat's own Customer Center
 CustomerCenter(options = CustomerCenterOptions.Builder().build(), onDismiss = …)"""
