@@ -147,6 +147,40 @@ class DocumentAssistantTest {
     }
 
     @Test
+    fun `a rate-limited or unconfigured request is not counted against the day`() = runTest {
+        for (failure in listOf(
+            AnswerResult.Failure.QuotaExceeded,
+            AnswerResult.Failure.NotConfigured,
+            AnswerResult.Failure.NotAuthorized,
+            AnswerResult.Failure.Unavailable("init"),
+        )) {
+            var releaseCalls = 0
+            val instance = assistant(
+                composer = FakeComposer(onAnswer = { _, _ -> failure }),
+                tryConsumeQuota = { true },
+                releaseQuota = { releaseCalls++ },
+            )
+
+            instance.ask("insurance")
+
+            assertThat(releaseCalls).isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `a long partial answer keeps the sources it cites`() = runTest {
+        val answer = "I couldn't find a due date for that bill, but your March electricity bill from Lydec " +
+            "shows 420.50 MAD for the period, paid by direct debit from your Attijariwafa account."
+        val instance = assistant(
+            composer = FakeComposer(onAnswer = { _, _ -> AnswerResult.Answered(answer, citedDocumentIds = listOf(1L)) }),
+        )
+
+        val reply = instance.ask("insurance") as AssistantReply.Answered
+
+        assertThat(reply.sources).isNotEmpty()
+    }
+
+    @Test
     fun `an unexpected exception while asking is reported, not left to crash`() = runTest {
         val instance = assistant(search = { _, _, _ -> throw IllegalStateException("boom") })
 

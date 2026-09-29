@@ -1,5 +1,6 @@
 package app.dewey.pdf
 
+import com.tom_roush.pdfbox.util.Matrix
 import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.net.Uri
@@ -172,8 +173,26 @@ private fun stampOntoPage(
 
     val image = LosslessFactory.createFromImage(document, signature)
     PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true).use { stream ->
-        stream.drawImage(image, placement.x, placement.y, placement.width, placement.height)
+        stream.drawImage(image, uprightOnScreen(placement.x, placement.y, placement.width, placement.height, page.rotation))
     }
 }
+
+/**
+ * The transform that draws the signature into its page-space rectangle so it
+ * reads upright once the viewer applies the page's /Rotate.
+ *
+ * A plain drawImage(x, y, w, h) is always axis-aligned in unrotated page
+ * space, so on a page stored sideways the signature would come out sideways
+ * and stretched. /Rotate turns the page clockwise for display, so the image is
+ * turned the same amount counter-clockwise here; the rectangle's width and
+ * height are already the page-space ones, swapped for 90 and 270.
+ */
+internal fun uprightOnScreen(x: Float, y: Float, w: Float, h: Float, rotationDegrees: Int): Matrix =
+    when (((rotationDegrees % 360) + 360) % 360) {
+        90 -> Matrix(0f, h, -w, 0f, x + w, y)
+        180 -> Matrix(-w, 0f, 0f, -h, x + w, y + h)
+        270 -> Matrix(0f, -h, w, 0f, x, y + h)
+        else -> Matrix(w, 0f, 0f, h, x, y)
+    }
 
 private const val TAG = "SignatureStamp"

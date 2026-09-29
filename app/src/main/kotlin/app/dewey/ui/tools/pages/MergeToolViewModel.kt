@@ -49,10 +49,14 @@ data class MergeUiState(
 class MergeToolViewModel(private val toolkit: PdfToolkit) : ViewModel() {
 
     private val _state = MutableStateFlow(MergeUiState())
+    private var nextFileId = 0L
     val state: StateFlow<MergeUiState> = _state.asStateFlow()
 
     fun addFiles(newFiles: List<PickedFile>) {
-        val entries = newFiles.map { MergeFile(id = System.nanoTime(), file = it) }
+        // A counter, not System.nanoTime(): several files picked at once are
+        // mapped within one clock tick, and a repeated id is a repeated
+        // LazyColumn key, which throws.
+        val entries = newFiles.map { MergeFile(id = nextFileId++, file = it) }
         _state.value = _state.value.copy(files = _state.value.files + entries)
     }
 

@@ -39,7 +39,10 @@ class PageThumbnailSource(
     resolver: ContentResolver,
     cacheDir: File,
     private val io: CoroutineDispatcher = Dispatchers.IO,
-    maxSpoolBytes: Long = RasterTools.MAX_SPOOL_BYTES,
+    // The workspace's own limit, not the raster tools' lower one: a file the
+    // page tools accept must also get its thumbnails, or a 50MB PDF would
+    // load a page count and then show nothing but broken cards.
+    maxSpoolBytes: Long = PdfWorkspace.MAX_BYTES,
     maxCacheBytes: Int = DEFAULT_CACHE_BYTES,
 ) {
     private val pageSource = RasterPageSource(resolver, cacheDir, maxSpoolBytes)
@@ -73,7 +76,12 @@ class PageThumbnailSource(
             ?: return Result.failure(RasterToolException(RasterFailure.Unreadable(uri.lastPathSegment.orEmpty())))
 
         val deferred = CompletableDeferred<Result<Bitmap>>(parent = currentCoroutineContext()[Job])
-        opened.requests.trySend(Request(pageIndex, longEdgePx, deferred))
+        // The channel closes when its file is replaced or the renderer dies; a
+        // request that never went in would otherwise be awaited forever.
+        if (opened.requests.trySend(Request(pageIndex, longEdgePx, deferred)).isFailure) {
+            deferred.cancel()
+            return Result.failure(RasterToolException(RasterFailure.Unreadable(uri.lastPathSegment.orEmpty())))
+        }
         val result = deferred.await()
         result.onSuccess { cache.put(key, it) }
         return result

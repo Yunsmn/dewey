@@ -164,6 +164,12 @@ internal class RasterPageSource(
         } catch (e: Exception) {
             Log.w(TAG, "Could not render page $index", e)
             null
+        } catch (e: OutOfMemoryError) {
+            // One page too large to hold is a missing page, not a dead render
+            // loop: letting this escape would strand every request queued
+            // behind it (see PageThumbnailSource).
+            Log.w(TAG, "Out of memory rendering page $index", e)
+            null
         }
 
     private companion object {

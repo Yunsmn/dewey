@@ -44,8 +44,9 @@ import app.dewey.ui.theme.Hue
 
 /**
  * The transcript so far, auto-scrolling to the newest line — see
- * [LaunchedEffect] below, keyed on the message count so a new line, not just
- * any recomposition, is what triggers the scroll.
+ * [LaunchedEffect] below, keyed on the newest message itself so both a new
+ * line and the pending bubble turning into its (often longer) answer scroll,
+ * not just any recomposition.
  */
 @Composable
 fun AssistantConversation(
@@ -55,7 +56,7 @@ fun AssistantConversation(
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
 ) {
-    LaunchedEffect(messages.size) {
+    LaunchedEffect(messages.size, messages.lastOrNull()) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
     }
 

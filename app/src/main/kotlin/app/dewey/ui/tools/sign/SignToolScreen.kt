@@ -1,5 +1,6 @@
 package app.dewey.ui.tools.sign
 
+import androidx.compose.ui.graphics.Color
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -194,27 +195,33 @@ private fun SignatureSection(
 
     val padState = remember { SignaturePadState() }
     val density = LocalDensity.current
-    val ink = Dewey.colors.ink
-
     Column {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val padWidthPx = with(density) { maxWidth.toPx() }
             val padHeightPx = with(density) { SIGNATURE_PAD_HEIGHT.toPx() }
 
-            SignaturePad(state = padState, modifier = Modifier.fillMaxWidth().height(SIGNATURE_PAD_HEIGHT))
+            // A Column inside the constraints box: the box itself stacks its
+            // children, which would put the buttons on top of the pad.
+            Column {
+                SignaturePad(state = padState, modifier = Modifier.fillMaxWidth().height(SIGNATURE_PAD_HEIGHT))
 
-            Spacer(Modifier.height(Dewey.spacing.tight))
-            Row(horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row)) {
-                SecondaryAction(label = "Clear", onClick = padState::clear)
-                SecondaryAction(
-                    label = "Use this signature",
-                    onClick = {
-                        if (padState.hasInk) {
-                            val strokeWidthPx = minOf(padWidthPx, padHeightPx) * SIGNATURE_STROKE_WIDTH_FRACTION
-                            onSignatureDrawn(padState.toBitmap(padWidthPx.toInt(), padHeightPx.toInt(), ink, strokeWidthPx))
-                        }
-                    },
-                )
+                Spacer(Modifier.height(Dewey.spacing.tight))
+                Row(horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row)) {
+                    SecondaryAction(label = "Clear", onClick = padState::clear)
+                    SecondaryAction(
+                        label = "Use this signature",
+                        onClick = {
+                            if (padState.hasInk) {
+                                val strokeWidthPx = minOf(padWidthPx, padHeightPx) * SIGNATURE_STROKE_WIDTH_FRACTION
+                                // A fixed pen colour, not the theme's ink: in the dark
+                                // theme that is near-white, which vanishes on paper.
+                                onSignatureDrawn(
+                                    padState.toBitmap(padWidthPx.toInt(), padHeightPx.toInt(), SIGNATURE_INK, strokeWidthPx),
+                                )
+                            }
+                        },
+                    )
+                }
             }
         }
 
@@ -226,6 +233,9 @@ private fun SignatureSection(
 }
 
 private val SIGNATURE_PAD_HEIGHT = 160.dp
+
+/** Dark blue-black, the colour of a pen on paper whatever the app theme is. */
+private val SIGNATURE_INK = Color(0xFF14213D)
 
 /** A minus/number/plus row rather than a bare text field — a page number is picked far more often than typed. */
 @Composable

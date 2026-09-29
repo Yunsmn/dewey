@@ -92,4 +92,20 @@ class AnswerSourcesParserTest {
         assertThat(parsed.text).isEqualTo("Renews in March.")
         assertThat(parsed.citedPassageNumbers).containsExactly(1)
     }
+
+    @Test
+    fun `a SOURCES line dressed in Markdown is still read and stripped`() {
+        val parsed = parseAnswerSources("Renews in March.\n\n**SOURCES:** [1, 3]", passageCount = 4)
+
+        assertThat(parsed.text).isEqualTo("Renews in March.")
+        assertThat(parsed.citedPassageNumbers).containsExactly(1, 3).inOrder()
+    }
+
+    @Test
+    fun `a closing sentence after the SOURCES line does not leave the line in the answer`() {
+        val parsed = parseAnswerSources("Renews in March.\nSOURCES: 2\nLet me know if you need more.", passageCount = 4)
+
+        assertThat(parsed.text).isEqualTo("Renews in March.\nLet me know if you need more.")
+        assertThat(parsed.citedPassageNumbers).containsExactly(2)
+    }
 }

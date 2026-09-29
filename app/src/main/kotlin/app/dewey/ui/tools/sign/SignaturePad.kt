@@ -82,7 +82,25 @@ class SignaturePadState {
         for (path in paths()) {
             canvas.drawPath(path.asAndroidPath(), paint)
         }
-        return bitmap
+        return bitmap.croppedToInk(strokeWidthPx)
+    }
+
+    /**
+     * This bitmap trimmed to the drawn strokes plus a stroke's width of margin.
+     *
+     * The pad is far wider than most signatures; left uncropped, its empty
+     * margins would be placed and scaled along with the ink, so the signature
+     * lands smaller than it looks and off-centre from where it was dropped.
+     */
+    private fun Bitmap.croppedToInk(strokeWidthPx: Float): Bitmap {
+        val points = strokes.flatten()
+        if (points.isEmpty()) return this
+        val margin = strokeWidthPx
+        val left = (points.minOf { it.x } - margin).toInt().coerceIn(0, width - 1)
+        val top = (points.minOf { it.y } - margin).toInt().coerceIn(0, height - 1)
+        val right = (points.maxOf { it.x } + margin).toInt().coerceIn(left + 1, width)
+        val bottom = (points.maxOf { it.y } + margin).toInt().coerceIn(top + 1, height)
+        return Bitmap.createBitmap(this, left, top, right - left, bottom - top)
     }
 }
 

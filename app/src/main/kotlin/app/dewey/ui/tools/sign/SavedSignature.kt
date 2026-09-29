@@ -28,13 +28,20 @@ fun hasSavedSignature(filesDir: File): Boolean = signatureFile(filesDir).exists(
 
 /** Overwrites the remembered signature with [bitmap]. */
 suspend fun saveSignature(filesDir: File, bitmap: Bitmap): Result<Unit> = withContext(Dispatchers.IO) {
+    // Written beside the real file and renamed over it, so a crash mid-write
+    // leaves the old signature rather than a truncated PNG that still counts
+    // as "saved" but decodes to nothing.
+    val partial = File(filesDir, "$SIGNATURE_FILE_NAME.partial")
     try {
-        signatureFile(filesDir).outputStream().use { out ->
+        val written = partial.outputStream().use { out ->
             bitmap.compress(Bitmap.CompressFormat.PNG, PNG_QUALITY, out)
         }
+        check(written) { "PNG encoder refused the signature" }
+        check(partial.renameTo(signatureFile(filesDir))) { "could not replace the saved signature" }
         Result.success(Unit)
     } catch (e: Exception) {
         Log.w(TAG, "Could not save the signature", e)
+        partial.delete()
         Result.failure(e)
     }
 }
@@ -44,7 +51,12 @@ suspend fun loadSavedSignature(filesDir: File): Bitmap? = withContext(Dispatcher
     val file = signatureFile(filesDir)
     if (!file.exists()) return@withContext null
     try {
-        BitmapFactory.decodeFile(file.absolutePath)
+        // decodeFile returns null rather than throwing on a damaged file;
+        // forget it, so "Use saved signature" stops being offered for nothing.
+        BitmapFactory.decodeFile(file.absolutePath) ?: run {
+            file.delete()
+            null
+        }
     } catch (e: Exception) {
         Log.w(TAG, "Could not read the saved signature", e)
         null

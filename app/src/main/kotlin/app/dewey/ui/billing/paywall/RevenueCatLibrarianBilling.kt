@@ -2,6 +2,7 @@ package app.dewey.ui.billing.paywall
 
 import android.app.Activity
 import android.util.Log
+import app.dewey.billing.Entitlements
 import com.revenuecat.purchases.Offering
 import com.revenuecat.purchases.Package
 import com.revenuecat.purchases.PurchaseParams
@@ -18,6 +19,7 @@ import kotlinx.coroutines.CancellationException
 private const val TAG = "LibrarianBilling"
 private const val PURCHASE_GENERIC_FAILURE = "The purchase didn't go through. Try again."
 private const val RESTORE_GENERIC_FAILURE = "Couldn't restore a purchase. Try again."
+private const val RESTORE_NOTHING_FOUND = "No Librarian purchase was found for this account."
 
 /**
  * [LibrarianBilling] over the real RevenueCat SDK.
@@ -61,8 +63,15 @@ class RevenueCatLibrarianBilling : LibrarianBilling {
     }
 
     override suspend fun restore(): PurchaseOutcome = try {
-        Purchases.sharedInstance.awaitRestore()
-        PurchaseOutcome.Success
+        // A restore that finds nothing still returns normally, so success is
+        // decided by what came back, not by the absence of an exception —
+        // otherwise the paywall would welcome someone to a tier they don't have.
+        val info = Purchases.sharedInstance.awaitRestore()
+        if (info.entitlements[Entitlements.LIBRARIAN]?.isActive == true) {
+            PurchaseOutcome.Success
+        } else {
+            PurchaseOutcome.Failed(RESTORE_NOTHING_FOUND)
+        }
     } catch (e: PurchasesTransactionException) {
         if (e.userCancelled) PurchaseOutcome.Cancelled else failed("restore", e, RESTORE_GENERIC_FAILURE)
     } catch (e: CancellationException) {

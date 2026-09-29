@@ -70,8 +70,7 @@ class DocumentAssistant(
                 )
 
                 is AnswerResult.Failure -> {
-                    // Never reached the model — the slot just spent bought nothing.
-                    if (result == AnswerResult.Failure.NoNetwork) releaseQuota()
+                    if (!result.spentAnAnswer()) releaseQuota()
                     AssistantReply.Failed(result.plainMessage())
                 }
             }
@@ -122,7 +121,12 @@ class DocumentAssistant(
      * that look like they back it up.
      */
     private fun sourceDocumentIds(cited: List<Long>?, hits: List<DocumentSearch.Hit>, answer: String): List<Long> {
-        if (saysNothingWasFound(answer)) return emptyList()
+        // A short "couldn't find it" hides every chip; a longer answer that
+        // says one thing is missing but cites what it did find ("no due date,
+        // but your March bill shows 420 MAD") keeps the ones it cited.
+        if (saysNothingWasFound(answer) && (cited.isNullOrEmpty() || answer.length < SHORT_ANSWER_CHARS)) {
+            return emptyList()
+        }
         if (!cited.isNullOrEmpty()) return cited
 
         val perDocument = bestPassagePerDocument(hits)
@@ -130,7 +134,25 @@ class DocumentAssistant(
         return perDocument.filter { it.score >= topScore * FALLBACK_SCORE_RATIO }.map { it.documentId }
     }
 
+    /**
+     * Whether a failed request still cost one of the day's questions.
+     *
+     * Only the failures where the model was actually asked and worked on it —
+     * it ran out of time, answered with nothing, or declined — keep the slot.
+     * Everything else never got an answer started: no network, no Firebase in
+     * this build, the service refusing the key or rate-limiting it. Counting
+     * those would drain the day's questions on taps that asked nothing.
+     */
+    private fun AnswerResult.Failure.spentAnAnswer(): Boolean = when (this) {
+        AnswerResult.Failure.TimedOut, AnswerResult.Failure.EmptyResponse, is AnswerResult.Failure.Blocked -> true
+        AnswerResult.Failure.NotConfigured, AnswerResult.Failure.NoNetwork, AnswerResult.Failure.QuotaExceeded,
+        AnswerResult.Failure.NotAuthorized, is AnswerResult.Failure.Unavailable -> false
+    }
+
     companion object {
+        /** Below this, an answer that says it found nothing is taken as saying only that. */
+        private const val SHORT_ANSWER_CHARS = 160
+
         /** Chunks considered before collapsing to one row per document. */
         private const val HIT_LIMIT = 40
 

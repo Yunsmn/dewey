@@ -181,4 +181,11 @@ class SplitOperationsTest {
         val groups = SplitOperations.byRanges("1-2,3-4", pageCount = 4).getOrThrow()
         assertThat(groups.map { it.pages }).containsExactly(listOf(0, 1), listOf(2, 3)).inOrder()
     }
+
+    @Test
+    fun `an en dash from a phone keyboard reads as a range`() {
+        val groups = SplitOperations.byRanges("1\u20133, 4\u20145", pageCount = 5).getOrThrow()
+
+        assertThat(groups.map { it.pages }).containsExactly(listOf(0, 1, 2), listOf(3, 4)).inOrder()
+    }
 }

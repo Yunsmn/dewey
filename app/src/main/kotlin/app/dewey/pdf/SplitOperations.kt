@@ -86,7 +86,9 @@ object SplitOperations {
         val groups = mutableListOf<PageGroup>()
         val seen = mutableSetOf<Int>()
         for (rawToken in trimmed.split(",")) {
-            val token = rawToken.trim()
+            // Phone keyboards turn "1-3" into "1–3" on their own; an en or em
+            // dash is read as the hyphen the person typed.
+            val token = rawToken.trim().replace('\u2013', '-').replace('\u2014', '-')
             if (token.isEmpty()) continue
 
             val (start, end) = parseToken(token, pageCount).fold(

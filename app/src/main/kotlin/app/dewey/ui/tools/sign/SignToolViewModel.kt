@@ -225,7 +225,10 @@ class SignToolViewModel(
                 pageIndex = page - 1,
                 longEdgePx = previewLongEdgePx,
             )
-            if (_state.value.source?.uri != source.uri) return@launch
+            // Both, not just the file: stepping pages quickly starts a render
+            // per step, and a slow one for page 3 must not land after page 4's
+            // and put the signature on a page the person isn't looking at.
+            if (_state.value.source?.uri != source.uri || _state.value.pageNumber != page) return@launch
             _state.value = result.fold(
                 onSuccess = { bitmap -> withPreviewApplied(bitmap) },
                 onFailure = { error ->

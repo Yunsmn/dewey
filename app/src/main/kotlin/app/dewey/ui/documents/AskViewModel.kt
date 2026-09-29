@@ -90,6 +90,12 @@ class AskViewModel(
         // answer landing for a question that has since changed underneath it.
         searchJob?.cancel()
         askJob?.cancel()
+        // An answer that was still being worked on is gone with its job; left
+        // alone, its spinner would stay up for a question nobody is waiting on.
+        val answer = _answerState.value
+        if (answer is AnswerUiState.Preparing || answer is AnswerUiState.Thinking) {
+            _answerState.value = AnswerUiState.Idle
+        }
 
         if (value.isBlank()) {
             // Clearing the field clears both results and the answer — neither
