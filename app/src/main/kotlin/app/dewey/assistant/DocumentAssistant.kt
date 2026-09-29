@@ -66,7 +66,7 @@ class DocumentAssistant(
             else -> when (val result = answerOrGiveBack(question, passages)) {
                 is AnswerResult.Answered -> AssistantReply.Answered(
                     text = result.text,
-                    sources = sourceDocumentIds(result.citedDocumentIds, hits).mapNotNull { resolveDocument(it) },
+                    sources = sourceDocumentIds(result.citedDocumentIds, hits, result.text).mapNotNull { resolveDocument(it) },
                 )
 
                 is AnswerResult.Failure -> {
@@ -111,9 +111,19 @@ class DocumentAssistant(
      * not "every document any retrieved passage came from" — that is the bug
      * this whole feature exists to fix — but the documents that were actually
      * strong matches: within [FALLBACK_SCORE_RATIO] of the top hit's score.
+     *
+     * The answer's own words outrank its `SOURCES:` line in two ways, both
+     * measured on the emulator on 2026-09-13. Flash-Lite wrote `SOURCES: none`
+     * under three of seven answers that plainly came from a document ("Omar
+     * Tazi visited the Clinique Al Madina Anfa"), which hid every chip. So an
+     * empty citation beside a real answer is treated as unknown and falls
+     * back. And an answer that says it found nothing shows no chips, whatever
+     * the line says, so a "could not find it" never sits beside documents
+     * that look like they back it up.
      */
-    private fun sourceDocumentIds(cited: List<Long>?, hits: List<DocumentSearch.Hit>): List<Long> {
-        if (cited != null) return cited
+    private fun sourceDocumentIds(cited: List<Long>?, hits: List<DocumentSearch.Hit>, answer: String): List<Long> {
+        if (saysNothingWasFound(answer)) return emptyList()
+        if (!cited.isNullOrEmpty()) return cited
 
         val perDocument = bestPassagePerDocument(hits)
         val topScore = perDocument.firstOrNull()?.score ?: return emptyList()

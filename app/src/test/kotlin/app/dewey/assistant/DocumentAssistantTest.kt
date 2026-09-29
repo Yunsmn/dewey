@@ -188,18 +188,51 @@ class DocumentAssistantTest {
     }
 
     @Test
-    fun `SOURCES colon none means no sources, not a guess`() = runTest {
+    fun `an answer that says nothing was found shows no sources`() = runTest {
         var resolveCalls = 0
         val instance = assistant(
             search = { _, _, _ -> listOf(hit(1, "a")) },
             resolveDocument = { resolveCalls++; document },
-            composer = FakeComposer(onAnswer = { _, _ -> AnswerResult.Answered("Not in your documents.", citedDocumentIds = emptyList()) }),
+            composer = FakeComposer(onAnswer = { _, _ ->
+                AnswerResult.Answered("I could not find when your car insurance renews in your documents.", citedDocumentIds = emptyList())
+            }),
         )
 
         val reply = instance.ask("insurance") as AssistantReply.Answered
 
         assertThat(reply.sources).isEmpty()
         assertThat(resolveCalls).isEqualTo(0)
+    }
+
+    @Test
+    fun `a not-found answer shows no sources even when the model cites one`() = runTest {
+        val instance = assistant(
+            composer = FakeComposer(onAnswer = { _, _ ->
+                AnswerResult.Answered("I could not find that in your documents.", citedDocumentIds = listOf(1L))
+            }),
+        )
+
+        val reply = instance.ask("insurance") as AssistantReply.Answered
+
+        assertThat(reply.sources).isEmpty()
+    }
+
+    @Test
+    fun `SOURCES none beside a real answer falls back rather than hiding the document it came from`() = runTest {
+        // Measured on the emulator: "Omar Tazi visited the Clinique Al Madina
+        // Anfa" arrived with SOURCES: none, and the chip vanished.
+        val documents = (1L..2L).associateWith { document(it) }
+        val instance = assistant(
+            search = { _, _, _ -> listOf(hit(1, "Omar Tazi, Clinique Al Madina Anfa", score = 1.0), hit(2, "unrelated", score = 0.4)) },
+            resolveDocument = { id -> documents[id] },
+            composer = FakeComposer(onAnswer = { _, _ ->
+                AnswerResult.Answered("Omar Tazi visited the Clinique Al Madina Anfa on 2023-04-14.", citedDocumentIds = emptyList())
+            }),
+        )
+
+        val reply = instance.ask("Which clinic did Omar Tazi visit?") as AssistantReply.Answered
+
+        assertThat(reply.sources).containsExactly(document(1))
     }
 
     @Test
