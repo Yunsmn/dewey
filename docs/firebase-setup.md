@@ -109,7 +109,20 @@ means three changes first:
 Play Integrity cannot attest an emulator at all, which is what the debug provider
 is for.
 
-## 6. Confirm
+## 6. Turn on email sign-in (optional account)
+
+The Me tab offers an optional account so a Librarian purchase follows a person
+to a new phone. It uses Firebase Authentication's email and password provider:
+
+1. Firebase console → **Authentication** → **Get started**.
+2. **Sign-in method** → **Email/Password** → enable → **Save**.
+
+Nothing else is needed: no SHA-1 fingerprint, no OAuth client. Signing in calls
+RevenueCat's `logIn` with the Firebase user id, and signing out calls `logOut`,
+so the RevenueCat customer is the account, not the install. Without this step
+the Me tab still shows the form and sign-in reports that it could not sign in.
+
+## 7. Confirm
 
 ```
 ls -l app/google-services.json
@@ -132,6 +145,9 @@ Worth being precise about, since it is the claim the README makes:
 - When a bill needs a vendor, amount and due date pulled out, **that document's
   text** is sent.
 - Purchases go through RevenueCat, separately.
+- If you create an account, **its email and password** go to Firebase
+  Authentication, and the account's user id and email go to RevenueCat as the
+  customer's id. The account is optional and holds no documents.
 
 Sorting sends nothing at all: classification is a nearest-neighbour lookup
 against on-device embeddings.

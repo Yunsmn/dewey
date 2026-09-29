@@ -1,6 +1,5 @@
 package app.dewey.pdf
 
-import com.tom_roush.pdfbox.util.Matrix
 import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.net.Uri
@@ -8,6 +7,7 @@ import android.util.Log
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory
+import com.tom_roush.pdfbox.util.Matrix
 
 /**
  * Drawing a signature bitmap onto one page of a PDF.

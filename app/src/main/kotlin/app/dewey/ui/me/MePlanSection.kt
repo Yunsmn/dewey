@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.SupportAgent
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -41,6 +42,7 @@ fun MePlanSection(
     onUpgrade: () -> Unit,
     onRestore: () -> Unit,
     onManageSubscription: (Uri) -> Unit,
+    onOpenCustomerCenter: (() -> Unit)? = null,
 ) {
     GlassCard(modifier = Modifier.fillMaxWidth(), padding = Dewey.spacing.gutter) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -70,6 +72,14 @@ fun MePlanSection(
                     label = "Manage subscription",
                     onClick = { onManageSubscription(managementUrl) },
                     icon = Icons.Rounded.CreditCard,
+                )
+            }
+            if (onOpenCustomerCenter != null) {
+                Spacer(Modifier.height(Dewey.spacing.tight))
+                SecondaryAction(
+                    label = "Help with my subscription",
+                    onClick = onOpenCustomerCenter,
+                    icon = Icons.Rounded.SupportAgent,
                 )
             }
         }

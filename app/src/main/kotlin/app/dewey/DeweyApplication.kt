@@ -26,7 +26,7 @@ class DeweyApplication : Application(), Configuration.Provider {
 
         // Before anything can ask whether a feature is unlocked. A paywall
         // opened from a cold start is exactly when that happens.
-        container.entitlements.start(scope)
+        container.entitlements.start(scope, appUserId = container.account.userId)
     }
 
     /**

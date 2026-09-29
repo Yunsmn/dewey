@@ -8,6 +8,7 @@ import app.dewey.BuildConfig
 import app.dewey.assistant.AssistantQuota
 import app.dewey.assistant.DocumentAssistant
 import app.dewey.assistant.assistantQuotaStore
+import app.dewey.auth.Account
 import app.dewey.classify.DocumentClassifier
 import app.dewey.billing.Entitlements
 import app.dewey.cloud.AnswerComposer
@@ -110,6 +111,9 @@ class AppContainer(private val context: Context) {
 
     /** Whether the paid tier is available — see [app.dewey.billing.Entitlements]. */
     val entitlements: Entitlements by lazy { Entitlements(context) }
+
+    /** The optional sign-in that carries a purchase across phones — see [app.dewey.auth.Account]. */
+    val account: Account by lazy { Account(entitlements) }
 
     /** Whole-app settings — today, just the theme choice. See [AppSettings]. */
     val appSettings: AppSettings by lazy { AppSettings(context.appSettingsStore) }

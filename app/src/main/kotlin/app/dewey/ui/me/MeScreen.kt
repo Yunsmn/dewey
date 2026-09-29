@@ -35,10 +35,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.dewey.BuildConfig
 import app.dewey.assistant.AssistantQuota
+import app.dewey.auth.AccountState
 import app.dewey.data.settings.ThemeMode
 import app.dewey.di.AppContainer
 import app.dewey.ui.billing.LibrarianPaywall
@@ -50,6 +53,8 @@ import app.dewey.ui.library.LibraryViewModel
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.theme.Hue
+import com.revenuecat.purchases.ui.revenuecatui.customercenter.CustomerCenter
+import com.revenuecat.purchases.ui.revenuecatui.customercenter.CustomerCenterOptions
 
 /** Where the repo lives — see the About card's "View source on GitHub". */
 private const val GITHUB_URL = "https://github.com/Yunsmn/dewey"
@@ -67,8 +72,30 @@ private const val GITHUB_URL = "https://github.com/Yunsmn/dewey"
 fun MeScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val model: MeViewModel = viewModel(factory = MeViewModel.factory(container))
     val state by model.state.collectAsStateWithLifecycle()
+    val account by model.accountState.collectAsStateWithLifecycle()
+    val accountBusy by model.accountBusy.collectAsStateWithLifecycle()
     var showPaywall by remember { mutableStateOf(false) }
+    var showCustomerCenter by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    // RevenueCat's own Customer Center, from the purchases-ui library: a
+    // self-serve screen for restoring, cancelling, changing plan or asking
+    // for help, driven by the dashboard. Full screen, like a store sheet.
+    if (showCustomerCenter) {
+        Dialog(
+            onDismissRequest = { showCustomerCenter = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            CustomerCenter(
+                modifier = Modifier.fillMaxSize(),
+                options = CustomerCenterOptions.Builder().build(),
+                onDismiss = {
+                    showCustomerCenter = false
+                    model.onPaywallDismissed()
+                },
+            )
+        }
+    }
 
     if (showPaywall) {
         LibrarianPaywall(
@@ -107,6 +134,13 @@ fun MeScreen(container: AppContainer, modifier: Modifier = Modifier) {
         onChangeFolder = { pickFolder.launch(null) },
         onViewSource = { openUrl(context, GITHUB_URL) },
         modifier = modifier,
+        account = account,
+        accountBusy = accountBusy,
+        onSignIn = model::onSignIn,
+        onCreateAccount = model::onCreateAccount,
+        onResetPassword = model::onResetPassword,
+        onSignOut = model::onSignOut,
+        onOpenCustomerCenter = { showCustomerCenter = true },
     )
 }
 
@@ -134,6 +168,13 @@ private fun MeContent(
     onChangeFolder: () -> Unit,
     onViewSource: () -> Unit,
     modifier: Modifier = Modifier,
+    account: AccountState = AccountState.Unavailable,
+    accountBusy: Boolean = false,
+    onSignIn: (String, String) -> Unit = { _, _ -> },
+    onCreateAccount: (String, String) -> Unit = { _, _ -> },
+    onResetPassword: (String) -> Unit = {},
+    onSignOut: () -> Unit = {},
+    onOpenCustomerCenter: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier
@@ -153,8 +194,21 @@ private fun MeContent(
             onUpgrade = onUpgrade,
             onRestore = onRestore,
             onManageSubscription = onManageSubscription,
+            onOpenCustomerCenter = onOpenCustomerCenter,
         )
         Spacer(Modifier.height(Dewey.spacing.row))
+
+        if (account != AccountState.Unavailable) {
+            MeAccountSection(
+                account = account,
+                isBusy = accountBusy,
+                onSignIn = onSignIn,
+                onCreateAccount = onCreateAccount,
+                onResetPassword = onResetPassword,
+                onSignOut = onSignOut,
+            )
+            Spacer(Modifier.height(Dewey.spacing.row))
+        }
 
         Row(horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row)) {
             Stat(Icons.Rounded.Description, Dewey.colors.hues.pages, state.documents, if (state.documents == 1) "Document" else "Documents")

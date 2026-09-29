@@ -9,7 +9,10 @@ import com.revenuecat.purchases.PurchasesConfiguration
 import com.revenuecat.purchases.CustomerInfo
 import com.revenuecat.purchases.PurchasesException
 import com.revenuecat.purchases.awaitCustomerInfo
+import com.revenuecat.purchases.awaitLogIn
+import com.revenuecat.purchases.awaitLogOut
 import com.revenuecat.purchases.interfaces.UpdatedCustomerInfoListener
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
@@ -50,8 +53,13 @@ class Entitlements(private val context: Context) {
      * Called from Application.onCreate because RevenueCat needs to be
      * configured before anything asks it a question, and a paywall opened from
      * a cold start is exactly when that would happen.
+     *
+     * [appUserId] is the signed-in account's id, if there is one — see
+     * [app.dewey.auth.Account]. Configuring with it, rather than configuring
+     * anonymously and logging in afterwards, means a returning subscriber is
+     * never briefly an anonymous customer with nothing.
      */
-    fun start(scope: CoroutineScope) {
+    fun start(scope: CoroutineScope, appUserId: String? = null) {
         if (!isConfigured) {
             Log.i(TAG, "No RevenueCat key; every feature is unlocked")
             return
@@ -59,7 +67,9 @@ class Entitlements(private val context: Context) {
 
         Purchases.logLevel = if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.WARN
         Purchases.configure(
-            PurchasesConfiguration.Builder(context, BuildConfig.REVENUECAT_KEY).build()
+            PurchasesConfiguration.Builder(context, BuildConfig.REVENUECAT_KEY)
+                .apply { if (appUserId != null) appUserID(appUserId) }
+                .build()
         )
 
         // A listener and an initial read, not one or the other. The listener
@@ -89,6 +99,47 @@ class Entitlements(private val context: Context) {
         } catch (e: PurchasesException) {
             Log.w(TAG, "Could not refresh entitlements: ${e.message}")
         }
+    }
+
+    /**
+     * Makes the RevenueCat customer the signed-in account rather than this
+     * install's anonymous id.
+     *
+     * RevenueCat's logIn carries anything bought anonymously on this phone
+     * over to the account (or, if the account already owns Librarian, simply
+     * finds it), so signing in never loses a purchase. The email is set as the
+     * customer's email attribute, so a support request in the RevenueCat
+     * dashboard can be matched to a person.
+     */
+    suspend fun identify(userId: String, email: String?) {
+        if (!isConfigured) return
+        try {
+            val purchases = Purchases.sharedInstance
+            state.value = purchases.awaitLogIn(userId).customerInfo.hasLibrarian()
+            if (!email.isNullOrBlank()) purchases.setEmail(email)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not link the purchase to the account: ${e.message}")
+        }
+    }
+
+    /**
+     * Back to an anonymous customer after signing out. RevenueCat refuses to
+     * log out a customer who is already anonymous, so that case is skipped
+     * rather than reported.
+     */
+    suspend fun forget() {
+        if (!isConfigured) return
+        try {
+            val purchases = Purchases.sharedInstance
+            if (!purchases.isAnonymous) purchases.awaitLogOut()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not sign the purchase out: ${e.message}")
+        }
+        refresh()
     }
 
     companion object {

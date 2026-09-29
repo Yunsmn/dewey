@@ -294,6 +294,10 @@ dependencies {
     // does not need to be gated the way the google-services plugin does.
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.ai)
+    // The optional account behind app.dewey.auth.Account. Like firebase-ai it
+    // compiles without a Firebase project; the code only touches it when
+    // BuildConfig.HAS_FIREBASE says one was configured.
+    implementation(libs.firebase.auth)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

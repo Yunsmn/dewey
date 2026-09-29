@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.dewey.assistant.AssistantQuota
+import app.dewey.auth.Account
+import app.dewey.auth.AccountState
 import app.dewey.billing.Entitlements
 import app.dewey.data.repository.DocumentRepository
 import app.dewey.data.settings.AppSettings
@@ -23,11 +25,12 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** What the Me tab shows. There is no account, so everything here is about this phone. */
+/** What the Me tab shows about this phone. The optional account arrives separately, on [MeViewModel.accountState]. */
 data class MeUiState(
     val isEntitled: Boolean,
     /** False in a build with no RevenueCat key, where everything is unlocked and there is nothing to buy. */
@@ -64,13 +67,22 @@ class MeViewModel(
     private val entitlements: Entitlements,
     private val appSettings: AppSettings,
     assistantQuota: AssistantQuota,
+    private val account: Account,
 ) : ViewModel() {
+
+    /** Signed in, signed out, or no accounts in this build — see [Account]. */
+    val accountState: StateFlow<AccountState> = account.state
+
+    private val _accountBusy = MutableStateFlow(false)
+
+    /** True while a sign-in, account creation or sign-out is in flight. */
+    val accountBusy: StateFlow<Boolean> = _accountBusy.asStateFlow()
 
     private val managementUrl = MutableStateFlow<Uri?>(null)
     private val isRestoring = MutableStateFlow(false)
     private val _restoreEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
 
-    /** One-shot messages for a restore attempt — collected once by the screen and shown as a Toast. */
+    /** One-shot messages for a restore or account action — collected once by the screen and shown as a Toast. */
     val restoreEvents: SharedFlow<String> = _restoreEvents.asSharedFlow()
 
     private val counts = combine(
@@ -154,6 +166,37 @@ class MeViewModel(
         }
     }
 
+    fun onSignIn(email: String, password: String) = runAccountAction { account.signIn(email, password) }
+
+    fun onCreateAccount(email: String, password: String) = runAccountAction { account.createAccount(email, password) }
+
+    fun onResetPassword(email: String) = runAccountAction {
+        account.sendPasswordReset(email) ?: "Check your email for a link to reset your password."
+    }
+
+    fun onSignOut() = runAccountAction {
+        account.signOut()
+        null
+    }
+
+    /**
+     * Runs one account action, ignoring taps while another is in flight, and
+     * shows whatever sentence it returns through the same one-shot channel
+     * restore messages use. Entitlements follow on their own: signing in
+     * logs the RevenueCat customer in (see [Entitlements.identify]).
+     */
+    private fun runAccountAction(action: suspend () -> String?) {
+        if (_accountBusy.value) return
+        viewModelScope.launch {
+            _accountBusy.value = true
+            try {
+                action()?.let { _restoreEvents.tryEmit(it) }
+            } finally {
+                _accountBusy.value = false
+            }
+        }
+    }
+
     companion object {
         private const val TAG = "MeViewModel"
 
@@ -166,6 +209,7 @@ class MeViewModel(
                     entitlements = container.entitlements,
                     appSettings = container.appSettings,
                     assistantQuota = container.assistantQuota,
+                    account = container.account,
                 ) as T
         }
     }
