@@ -314,7 +314,7 @@ Writes `tools/corpus/corpus/` and a `ground_truth.json` answer key.
 ./gradlew :app:testDemoUnitTest
 ```
 
-Around 780 JVM unit tests, including PDFBox round trips on real documents and
+Over 760 JVM unit tests, including PDFBox round trips on real documents and
 the tokenizer checked token for token against HuggingFace.
 
 ---

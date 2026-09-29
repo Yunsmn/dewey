@@ -1,0 +1,103 @@
+{
+  "voice": "af_heart",
+  "speed": 1.0,
+  "scenes": [
+    {
+      "id": "01-hook",
+      "kind": "downloads",
+      "sentences": [
+        "This is my Downloads folder.",
+        "Somewhere in here is last January's electricity bill.",
+        "It's called document, five, dot P D F. Of course it is."
+      ]
+    },
+    {
+      "id": "02-title",
+      "kind": "title",
+      "sentences": [
+        "This is Dewey. It reads your documents, so you don't have to remember what you called them."
+      ]
+    },
+    {
+      "id": "03-sort",
+      "kind": "phone",
+      "footage": "03-sort.mp4",
+      "kicker": "Librarian · Sort",
+      "headline": "One tap files a whole folder",
+      "bullets": ["Reads every PDF, even scans", "French, Arabic and English", "Unsure files wait for review", "The whole sort can be undone"],
+      "record": "Documents tab with the corpus folder linked. Tap Sort, let the progress run, then show the new folders and the review queue. End on the Undo button.",
+      "sentences": [
+        "I point it at a folder and tap Sort.",
+        "Dewey reads every P D F, in French, Arabic or English, even scans with no text in them.",
+        "It works out what each one is, creates the folders, and files them. Bills, bank statements, contracts, medical letters.",
+        "Anything it isn't sure about goes to a review queue instead of being guessed.",
+        "And the whole sort can be undone with one tap."
+      ]
+    },
+    {
+      "id": "04-numbers",
+      "kind": "numbers",
+      "sentences": [
+        "All of that happened on the phone. Sorting sends nothing, anywhere.",
+        "On our test set of a hundred documents, it filed ninety-seven, and got every single one right."
+      ]
+    },
+    {
+      "id": "05-ask",
+      "kind": "phone",
+      "footage": "05-ask.mp4",
+      "kicker": "Librarian · Ask",
+      "headline": "Ask your documents",
+      "bullets": ["Answers from what's in your files", "Shows the documents it used", "Bills grouped by due date"],
+      "record": "Open the assistant, type 'When is my Lydec bill due and how much is it?', wait for the answer with its source chips, tap one. Then a quick pass over the Bills tab.",
+      "sentences": [
+        "Then I can just ask. When is my Lydec bill due, and how much is it?",
+        "It answers from what's actually in my files, and shows exactly which documents it used.",
+        "Bills get their own tab, sorted by what's due first."
+      ]
+    },
+    {
+      "id": "06-revenuecat",
+      "kind": "phone",
+      "footage": "06-revenuecat.mp4",
+      "kicker": "Monetisation · RevenueCat",
+      "headline": "Librarian runs on RevenueCat",
+      "bullets": ["Prices live from the offering", "Entitlement unlocks instantly", "Sign in: purchase follows you", "Customer Center in the app"],
+      "record": "Fresh install (or signed-out Test Store user). Tap the locked Documents tab, show the paywall prices, buy the annual plan through the Test Store dialog, land on the unlocked tab. Then Me tab: sign in with email, open 'Help with my subscription'.",
+      "sentences": [
+        "The part that reads for you is Librarian, the paid tier, and it runs on RevenueCat.",
+        "The paywall is our own design, but every price on it comes live from the RevenueCat offering, and the savings badge is worked out from the real products.",
+        "One purchase, the entitlement flips, and everything unlocks.",
+        "Sign in, and RevenueCat logs the purchase in to your account, so it follows you to a new phone. And RevenueCat's Customer Center handles restores and cancellations right inside the app."
+      ]
+    },
+    {
+      "id": "07-code",
+      "kind": "code",
+      "sentences": [
+        "Under the hood, that's configure, a customer info listener, offerings, purchase, restore, log in, and Customer Center."
+      ]
+    },
+    {
+      "id": "08-tools",
+      "kind": "phone",
+      "footage": "08-tools.mp4",
+      "kicker": "Free · no ads, no account",
+      "headline": "A real scanner and fourteen PDF tools",
+      "bullets": ["Scan with edge detection and OCR", "Drag pages into order", "Sign, split, merge, compress, protect"],
+      "record": "Home: tap Scan and capture a page. Then Reorder: long-press a page thumbnail and drag it. Then Sign: draw a signature and place it on a page.",
+      "sentences": [
+        "And the free part isn't a teaser.",
+        "A real document scanner, and fourteen P D F tools. Drag pages into order, sign, split, merge, compress, add a password.",
+        "No ads, and no account needed."
+      ]
+    },
+    {
+      "id": "09-close",
+      "kind": "close",
+      "sentences": [
+        "Dewey. It finds the file you can't name."
+      ]
+    }
+  ]
+}

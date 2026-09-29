@@ -49,3 +49,8 @@ keystore.properties
 # RevenueCat API key. A Test Store key unlocks only a sandbox, but it is still
 # an account credential and this repo is public.
 revenuecat.properties
+
+# Demo video: fetched weights and fonts, rendered output, and screen recordings
+demo/.cache/
+demo/out/
+demo/footage/
