@@ -19,6 +19,8 @@ import app.dewey.ui.tools.secure.PageNumbersToolScreen
 import app.dewey.ui.tools.secure.ProtectToolScreen
 import app.dewey.ui.tools.secure.UnlockToolScreen
 import app.dewey.ui.tools.secure.WatermarkToolScreen
+import app.dewey.ui.tools.sign.SignToolScreen
+import app.dewey.ui.tools.split.SplitToolScreen
 
 /**
  * The screen behind each entry on the Tools hub.
@@ -47,6 +49,7 @@ fun ToolScreen(tool: ToolDestination, toolkit: PdfToolkit) {
         ToolDestination.ROTATE -> RotateToolScreen(toolkit)
         ToolDestination.REORDER -> ReorderToolScreen(toolkit)
         ToolDestination.DELETE_PAGES -> DeletePagesToolScreen(toolkit)
+        ToolDestination.SPLIT -> SplitToolScreen(toolkit)
 
         ToolDestination.PDF_TO_IMAGES -> PdfToImagesToolScreen(toolkit)
         ToolDestination.IMAGES_TO_PDF -> ImagesToPdfToolScreen(toolkit)
@@ -56,5 +59,6 @@ fun ToolScreen(tool: ToolDestination, toolkit: PdfToolkit) {
         ToolDestination.UNLOCK -> UnlockToolScreen(toolkit)
         ToolDestination.WATERMARK -> WatermarkToolScreen(toolkit)
         ToolDestination.PAGE_NUMBERS -> PageNumbersToolScreen(toolkit)
+        ToolDestination.SIGN -> SignToolScreen(toolkit)
     }
 }

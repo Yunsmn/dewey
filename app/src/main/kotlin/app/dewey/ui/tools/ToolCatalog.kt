@@ -2,10 +2,12 @@ package app.dewey.ui.tools
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BrandingWatermark
+import androidx.compose.material.icons.rounded.CallSplit
 import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.ContentCut
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.DocumentScanner
+import androidx.compose.material.icons.rounded.Draw
 import androidx.compose.material.icons.rounded.FormatListNumbered
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Lock
@@ -63,6 +65,7 @@ enum class ToolDestination(
     ROTATE("tools/rotate", "Rotate", "Rotate", "Turn pages a quarter at a time.", ToolGroup.PAGES, Icons.Rounded.RotateRight),
     REORDER("tools/reorder", "Reorder", "Reorder", "Move a page to where it belongs.", ToolGroup.PAGES, Icons.Rounded.SwapVert),
     DELETE_PAGES("tools/delete-pages", "Delete pages", "Delete", "Remove pages you don't need.", ToolGroup.PAGES, Icons.Rounded.DeleteSweep),
+    SPLIT("tools/split", "Split", "Split", "Break one PDF into several smaller ones.", ToolGroup.PAGES, Icons.Rounded.CallSplit),
 
     PDF_TO_IMAGES("tools/pdf-to-images", "PDF to images", "To images", "Save each page as a picture.", ToolGroup.CONVERT, Icons.Rounded.Image),
     IMAGES_TO_PDF("tools/images-to-pdf", "Images to PDF", "To PDF", "Turn photos into a document.", ToolGroup.CONVERT, Icons.Rounded.PictureAsPdf),
@@ -73,4 +76,5 @@ enum class ToolDestination(
 
     WATERMARK("tools/watermark", "Watermark", "Watermark", "Stamp text across every page.", ToolGroup.MARK, Icons.Rounded.BrandingWatermark),
     PAGE_NUMBERS("tools/page-numbers", "Page numbers", "Numbers", "Number the pages.", ToolGroup.MARK, Icons.Rounded.FormatListNumbered),
+    SIGN("tools/sign", "Sign", "Sign", "Draw a signature and place it on a page.", ToolGroup.MARK, Icons.Rounded.Draw),
 }
