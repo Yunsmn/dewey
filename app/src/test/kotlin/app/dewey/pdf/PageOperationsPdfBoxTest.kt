@@ -85,4 +85,33 @@ class PageOperationsPdfBoxTest {
             assertThat(document.pages.map { it.rotation }).containsExactly(0, 90, 0).inOrder()
         }
     }
+
+    @Test
+    fun `reorderTo rewrites the page tree to exactly the order given`() {
+        document(5).use { document ->
+            PageOperations.reorderTo(document, listOf(4, 0, 3, 1, 2)).getOrThrow()
+
+            assertThat(document.pageNumbers()).containsExactly(5, 1, 4, 2, 3).inOrder()
+        }
+    }
+
+    @Test
+    fun `reorderTo rejects an order that is not a permutation of the document's pages`() {
+        document(3).use { document ->
+            val result = PageOperations.reorderTo(document, listOf(0, 1))
+
+            assertThat(result.isFailure).isTrue()
+            assertThat(result.exceptionOrNull()).isInstanceOf(IllegalArgumentException::class.java)
+        }
+    }
+
+    @Test
+    fun `reorderTo rejects a repeated index even at the right size`() {
+        document(3).use { document ->
+            val result = PageOperations.reorderTo(document, listOf(0, 0, 1))
+
+            assertThat(result.isFailure).isTrue()
+            assertThat(result.exceptionOrNull()).isInstanceOf(IllegalArgumentException::class.java)
+        }
+    }
 }

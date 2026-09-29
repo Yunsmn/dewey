@@ -1,13 +1,14 @@
 package app.dewey.ui.tools.pages
 
-import app.dewey.ui.tools.ToolTextField
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.dewey.pdf.PageThumbnailSource
 import app.dewey.pdf.PdfToolkit
 import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
@@ -19,6 +20,8 @@ import app.dewey.ui.tools.derivedFileName
 import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
+import app.dewey.ui.tools.thumbnails.PageGrid
+import app.dewey.ui.tools.thumbnails.PageGridMode
 
 @Composable
 fun DeletePagesToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
@@ -29,8 +32,11 @@ fun DeletePagesToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
 
     DeletePagesToolContent(
         state = state,
+        thumbnailSource = viewModel.thumbnails,
         onPickFile = pickFile,
-        onRangeChanged = viewModel::onRangeChanged,
+        onToggle = viewModel::onToggle,
+        onSelectAll = viewModel::onSelectAll,
+        onClear = viewModel::onClearSelection,
         onRun = { saveAs(derivedFileName(state.file?.name.orEmpty(), "edited")) },
         onReset = viewModel::reset,
         modifier = modifier,
@@ -40,36 +46,44 @@ fun DeletePagesToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
 @Composable
 private fun DeletePagesToolContent(
     state: DeleteUiState,
+    thumbnailSource: PageThumbnailSource,
     onPickFile: () -> Unit,
-    onRangeChanged: (String) -> Unit,
+    onToggle: (Int) -> Unit,
+    onSelectAll: () -> Unit,
+    onClear: () -> Unit,
     onRun: () -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val hue = ToolDestination.DELETE_PAGES.group.hue
+
     ToolScaffold(
         title = "Delete pages",
-        description = "Remove specific pages from a document. The original stays as it is.",
+        description = "Tap the pages you don't need, then remove them. The original stays as it is.",
         state = state.runState,
         runLabel = "Delete and save",
         canRun = state.canRun,
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
-        hue = ToolDestination.DELETE_PAGES.group.hue,
+        hue = hue,
         icon = ToolDestination.DELETE_PAGES.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile, hue = ToolDestination.DELETE_PAGES.group.hue)
+        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile, hue = hue)
 
         if (state.file != null) {
-            FieldLabel("Pages to delete")
             PageCountHint(state.pageCount)
-            ToolTextField(
-                value = state.rangeText,
-                onValueChange = onRangeChanged,
-                placeholder = "e.g. 2, 5-6",
-                hue = ToolDestination.DELETE_PAGES.group.hue,
-            )
+            val pageCount = state.pageCount
+            if (pageCount != null) {
+                SelectionSummaryRow(selectedCount = state.selected.size, onSelectAll = onSelectAll, onClear = onClear)
+                PageGrid(
+                    mode = PageGridMode.Select(pageCount = pageCount, selected = state.selected, onToggle = onToggle),
+                    thumbnailSource = thumbnailSource,
+                    file = state.file,
+                    hue = hue,
+                )
+            }
         }
     }
 }
@@ -78,14 +92,15 @@ private fun DeletePagesToolContent(
 @Composable
 private fun DeletePagesToolScreenPreview() {
     DeweyTheme {
+        val context = LocalContext.current
         DeletePagesToolContent(
-            state = DeleteUiState(
-                file = PickedFile(Uri.EMPTY, "lease.pdf", 482_000),
-                pageCount = 12,
-                rangeText = "2,5-6",
-            ),
+            // pageCount left null — see ExtractToolScreenPreview's comment.
+            state = DeleteUiState(file = PickedFile(Uri.EMPTY, "lease.pdf", 482_000)),
+            thumbnailSource = PageThumbnailSource(context.contentResolver, context.cacheDir),
             onPickFile = {},
-            onRangeChanged = {},
+            onToggle = {},
+            onSelectAll = {},
+            onClear = {},
             onRun = {},
             onReset = {},
         )

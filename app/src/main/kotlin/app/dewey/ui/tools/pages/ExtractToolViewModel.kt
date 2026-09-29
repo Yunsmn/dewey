@@ -6,11 +6,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.dewey.pdf.PageOperations
+import app.dewey.pdf.PageThumbnailSource
 import app.dewey.pdf.PdfToolkit
 import app.dewey.pdf.flatten
 import app.dewey.pdf.saveOpenDocument
 import app.dewey.ui.tools.PickedFile
 import app.dewey.ui.tools.ToolRunState
+import app.dewey.ui.tools.thumbnails.selectAll
+import app.dewey.ui.tools.thumbnails.specFromSelection
+import app.dewey.ui.tools.thumbnails.toggleSelection
 import app.dewey.ui.tools.toolFailureMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,25 +24,37 @@ import kotlinx.coroutines.launch
 data class ExtractUiState(
     val file: PickedFile? = null,
     val pageCount: Int? = null,
-    val rangeText: String = "",
+    val selected: Set<Int> = emptySet(),
     val runState: ToolRunState = ToolRunState.Idle,
 ) {
-    val canRun: Boolean get() = canRunExtract(file, pageCount, rangeText) && runState !is ToolRunState.Running
+    val canRun: Boolean get() = canRunExtract(file, pageCount, selected) && runState !is ToolRunState.Running
 }
 
-/** Pulls the pages named by a typed range out of one PDF into a new document. */
+/** Pulls the pages checked in [PageGrid][app.dewey.ui.tools.thumbnails.PageGrid]'s select mode out of one PDF into a new document. */
 class ExtractToolViewModel(private val toolkit: PdfToolkit) : ViewModel() {
 
     private val _state = MutableStateFlow(ExtractUiState())
     val state: StateFlow<ExtractUiState> = _state.asStateFlow()
+
+    /** Owned here rather than by the screen so it survives recomposition and is closed exactly once — see [onCleared]. */
+    val thumbnails = PageThumbnailSource(toolkit.resolver, toolkit.cacheDir)
 
     fun onFilePicked(file: PickedFile) {
         _state.value = ExtractUiState(file = file)
         loadPageCount(file)
     }
 
-    fun onRangeChanged(text: String) {
-        _state.value = _state.value.copy(rangeText = text)
+    fun onToggle(pageIndex: Int) {
+        _state.value = _state.value.copy(selected = toggleSelection(_state.value.selected, pageIndex))
+    }
+
+    fun onSelectAll() {
+        val pageCount = _state.value.pageCount ?: return
+        _state.value = _state.value.copy(selected = selectAll(pageCount))
+    }
+
+    fun onClearSelection() {
+        _state.value = _state.value.copy(selected = emptySet())
     }
 
     fun reset() {
@@ -48,7 +64,8 @@ class ExtractToolViewModel(private val toolkit: PdfToolkit) : ViewModel() {
     fun run(target: Uri) {
         val current = _state.value
         val file = current.file
-        if (file == null || !canRunExtract(file, current.pageCount, current.rangeText)) return
+        if (file == null || !canRunExtract(file, current.pageCount, current.selected)) return
+        val spec = specFromSelection(current.selected)
         _state.value = current.copy(runState = ToolRunState.Running)
 
         viewModelScope.launch {
@@ -56,7 +73,7 @@ class ExtractToolViewModel(private val toolkit: PdfToolkit) : ViewModel() {
             // pages are only valid while the source document is open.
             val result = toolkit.workspace.read(file.uri, file.sizeBytes) { source ->
                 toolkit.workspace.newDocument().use { extracted ->
-                    PageOperations.extract(source, current.rangeText, extracted).fold(
+                    PageOperations.extract(source, spec, extracted).fold(
                         onSuccess = {
                             saveOpenDocument(extracted, toolkit.resolver, target).map { extracted.numberOfPages }
                         },
@@ -88,6 +105,10 @@ class ExtractToolViewModel(private val toolkit: PdfToolkit) : ViewModel() {
                 onFailure = { error -> _state.value.copy(runState = ToolRunState.Failed(toolFailureMessage(error))) },
             )
         }
+    }
+
+    override fun onCleared() {
+        thumbnails.close()
     }
 
     companion object {

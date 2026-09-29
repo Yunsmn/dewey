@@ -2,20 +2,18 @@ package app.dewey.ui.tools.pages
 
 import app.dewey.ui.tools.PickedFile
 
+/** Every page, 0-based, in its original order — [PageGrid][app.dewey.ui.tools.thumbnails.PageGrid]'s starting arrangement and what "Reset order" returns to. */
+fun identityOrder(pageCount: Int): List<Int> = (0 until pageCount).toList()
+
 /**
- * A document is chosen, its page count is known, and both positions the user
- * typed are whole numbers within it. Checked here rather than left entirely
- * to [app.dewey.pdf.PageOperations.parsePageMove] so the run button can stay
- * disabled while someone is still typing a number, instead of only failing
- * once they press it.
+ * A document is chosen, a page order is known, and it differs from
+ * [identityOrder] — dragging pages back to where they started shouldn't
+ * leave the run button enabled for a save that would change nothing.
  */
-fun canRunReorder(file: PickedFile?, pageCount: Int?, fromText: String, toText: String): Boolean {
-    if (file == null) return false
-    val count = pageCount ?: return false
-    val from = fromText.toIntOrNull() ?: return false
-    val to = toText.toIntOrNull() ?: return false
-    return from in 1..count && to in 1..count
+fun canRunReorder(file: PickedFile?, order: List<Int>?, pageCount: Int?): Boolean {
+    if (file == null || order == null || pageCount == null) return false
+    return order != identityOrder(pageCount)
 }
 
-/** "Moved page 5 to position 1." */
-fun reorderSummary(from: Int, to: Int): String = "Moved page $from to position $to"
+/** What a Reorder run reports — the details already showed up live as the pages moved, so there is nothing left to count. */
+fun reorderSummary(): String = "Saved the new page order."

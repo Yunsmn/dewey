@@ -280,6 +280,12 @@ dependencies {
     implementation(libs.onnxruntime.android)
     implementation(libs.pdfbox.android)
 
+    // Drag-to-reorder for the page-tool grids (Reorder) and Merge's file
+    // list — see PageGrid's doc for why a library rather than a hand-rolled
+    // pointerInput drag: this one already handles auto-scroll near the
+    // grid's edges and the accessibility-adjacent move semantics correctly.
+    implementation(libs.reorderable)
+
     // Deliberately no firebase-analytics: it is the default suggestion in
     // Firebase's own setup steps, and it would add tracking and consent
     // obligations to an app whose whole argument is about what stays on device.

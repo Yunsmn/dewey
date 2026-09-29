@@ -11,16 +11,15 @@ class ExtractLogicTest {
     private val file = PickedFile(mockk<Uri>(relaxed = true), "lease.pdf", 1_000)
 
     @Test
-    fun `needs a file, a known page count, and a non-blank range`() {
-        assertThat(canRunExtract(null, 10, "1-3")).isFalse()
-        assertThat(canRunExtract(file, null, "1-3")).isFalse()
-        assertThat(canRunExtract(file, 10, "")).isFalse()
-        assertThat(canRunExtract(file, 10, "   ")).isFalse()
+    fun `needs a file, a known page count, and at least one checked page`() {
+        assertThat(canRunExtract(null, 10, setOf(0))).isFalse()
+        assertThat(canRunExtract(file, null, setOf(0))).isFalse()
+        assertThat(canRunExtract(file, 10, emptySet())).isFalse()
     }
 
     @Test
-    fun `runs once a file, a page count, and a range are all present`() {
-        assertThat(canRunExtract(file, 10, "1-3")).isTrue()
+    fun `runs once a file, a page count, and a selection are all present`() {
+        assertThat(canRunExtract(file, 10, setOf(0, 2))).isTrue()
     }
 
     @Test

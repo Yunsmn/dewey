@@ -10,31 +10,24 @@ class RotateLogicTest {
 
     private val file = PickedFile(mockk<Uri>(relaxed = true), "lease.pdf", 1_000)
 
-    // -- effectiveRotateRange ---------------------------------------------
-
-    @Test
-    fun `a blank range means every page`() {
-        assertThat(effectiveRotateRange("", pageCount = 6)).isEqualTo("1-6")
-        assertThat(effectiveRotateRange("   ", pageCount = 6)).isEqualTo("1-6")
-    }
-
-    @Test
-    fun `a typed range is left as the user wrote it`() {
-        assertThat(effectiveRotateRange("1-3,5", pageCount = 6)).isEqualTo("1-3,5")
-    }
-
     // -- canRunRotate -------------------------------------------------
 
     @Test
-    fun `needs a file, a known page count, and a chosen direction`() {
-        assertThat(canRunRotate(null, 10, 90)).isFalse()
-        assertThat(canRunRotate(file, null, 90)).isFalse()
-        assertThat(canRunRotate(file, 10, null)).isFalse()
+    fun `needs a file, a known page count, a checked page, and a chosen direction`() {
+        assertThat(canRunRotate(null, 10, setOf(0), 90)).isFalse()
+        assertThat(canRunRotate(file, null, setOf(0), 90)).isFalse()
+        assertThat(canRunRotate(file, 10, emptySet(), 90)).isFalse()
+        assertThat(canRunRotate(file, 10, setOf(0), null)).isFalse()
     }
 
     @Test
-    fun `blank range text does not block running - it means every page`() {
-        assertThat(canRunRotate(file, 10, 90)).isTrue()
+    fun `runs once every page is selected and a direction is chosen`() {
+        assertThat(canRunRotate(file, 10, (0 until 10).toSet(), 90)).isTrue()
+    }
+
+    @Test
+    fun `runs with only some pages selected too`() {
+        assertThat(canRunRotate(file, 10, setOf(2, 4), 90)).isTrue()
     }
 
     // -- rotateSummary -------------------------------------------------

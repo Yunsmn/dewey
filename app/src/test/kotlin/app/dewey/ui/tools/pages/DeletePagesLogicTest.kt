@@ -11,16 +11,20 @@ class DeletePagesLogicTest {
     private val file = PickedFile(mockk<Uri>(relaxed = true), "lease.pdf", 1_000)
 
     @Test
-    fun `needs a file, a known page count, and a non-blank range`() {
-        assertThat(canRunDelete(null, 10, "2")).isFalse()
-        assertThat(canRunDelete(file, null, "2")).isFalse()
-        assertThat(canRunDelete(file, 10, "")).isFalse()
-        assertThat(canRunDelete(file, 10, "  ")).isFalse()
+    fun `needs a file, a known page count, and at least one checked page`() {
+        assertThat(canRunDelete(null, 10, setOf(1))).isFalse()
+        assertThat(canRunDelete(file, null, setOf(1))).isFalse()
+        assertThat(canRunDelete(file, 10, emptySet())).isFalse()
     }
 
     @Test
-    fun `runs once a file, a page count, and a range are all present`() {
-        assertThat(canRunDelete(file, 10, "2,5-6")).isTrue()
+    fun `runs once a file, a page count, and a selection short of every page are all present`() {
+        assertThat(canRunDelete(file, 10, setOf(1, 4, 5))).isTrue()
+    }
+
+    @Test
+    fun `refuses to delete every page`() {
+        assertThat(canRunDelete(file, 3, setOf(0, 1, 2))).isFalse()
     }
 
     @Test

@@ -1,6 +1,5 @@
 package app.dewey.ui.tools.pages
 
-import app.dewey.ui.tools.ToolTextField
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,11 +13,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.dewey.pdf.PageThumbnailSource
 import app.dewey.pdf.PdfToolkit
 import app.dewey.ui.theme.Dewey
 import app.dewey.ui.theme.DeweyTheme
@@ -31,6 +32,8 @@ import app.dewey.ui.tools.derivedFileName
 import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
+import app.dewey.ui.tools.thumbnails.PageGrid
+import app.dewey.ui.tools.thumbnails.PageGridMode
 
 private val QUARTER_TURNS = listOf(90, 180, 270)
 
@@ -43,8 +46,11 @@ fun RotateToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
 
     RotateToolContent(
         state = state,
+        thumbnailSource = viewModel.thumbnails,
         onPickFile = pickFile,
-        onRangeChanged = viewModel::onRangeChanged,
+        onToggle = viewModel::onToggle,
+        onSelectAll = viewModel::onSelectAll,
+        onClear = viewModel::onClearSelection,
         onDegreesChosen = viewModel::onDegreesChosen,
         onRun = { saveAs(derivedFileName(state.file?.name.orEmpty(), "rotated")) },
         onReset = viewModel::reset,
@@ -55,40 +61,53 @@ fun RotateToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
 @Composable
 private fun RotateToolContent(
     state: RotateUiState,
+    thumbnailSource: PageThumbnailSource,
     onPickFile: () -> Unit,
-    onRangeChanged: (String) -> Unit,
+    onToggle: (Int) -> Unit,
+    onSelectAll: () -> Unit,
+    onClear: () -> Unit,
     onDegreesChosen: (Int) -> Unit,
     onRun: () -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val hue = ToolDestination.ROTATE.group.hue
+
     ToolScaffold(
         title = "Rotate",
-        description = "Turn pages a quarter at a time. Leave the range blank to rotate the whole document.",
+        description = "Turn pages a quarter at a time. Every page is selected to start — tap to turn only some.",
         state = state.runState,
         runLabel = "Rotate and save",
         canRun = state.canRun,
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
-        hue = ToolDestination.ROTATE.group.hue,
+        hue = hue,
         icon = ToolDestination.ROTATE.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile, hue = ToolDestination.ROTATE.group.hue)
+        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile, hue = hue)
 
         if (state.file != null) {
-            FieldLabel("Pages to rotate")
-            PageCountHint(state.pageCount)
-            ToolTextField(
-                value = state.rangeText,
-                onValueChange = onRangeChanged,
-                placeholder = "e.g. 1-3, 7 — blank means every page",
-                hue = ToolDestination.ROTATE.group.hue,
-            )
-
             FieldLabel("Direction")
             QuarterTurnChoice(selected = state.degrees, onSelect = onDegreesChosen)
+
+            PageCountHint(state.pageCount)
+            val pageCount = state.pageCount
+            if (pageCount != null) {
+                SelectionSummaryRow(selectedCount = state.selected.size, onSelectAll = onSelectAll, onClear = onClear)
+                PageGrid(
+                    mode = PageGridMode.Select(
+                        pageCount = pageCount,
+                        selected = state.selected,
+                        onToggle = onToggle,
+                        previewRotationDegrees = state.degrees ?: 0,
+                    ),
+                    thumbnailSource = thumbnailSource,
+                    file = state.file,
+                    hue = hue,
+                )
+            }
         }
     }
 }
@@ -125,15 +144,15 @@ private fun QuarterTurnChip(degrees: Int, isSelected: Boolean, onClick: () -> Un
 @Composable
 private fun RotateToolScreenPreview() {
     DeweyTheme {
+        val context = LocalContext.current
         RotateToolContent(
-            state = RotateUiState(
-                file = PickedFile(Uri.EMPTY, "lease.pdf", 482_000),
-                pageCount = 12,
-                rangeText = "",
-                degrees = 90,
-            ),
+            // pageCount left null — see ExtractToolScreenPreview's comment.
+            state = RotateUiState(file = PickedFile(Uri.EMPTY, "lease.pdf", 482_000), degrees = 90),
+            thumbnailSource = PageThumbnailSource(context.contentResolver, context.cacheDir),
             onPickFile = {},
-            onRangeChanged = {},
+            onToggle = {},
+            onSelectAll = {},
+            onClear = {},
             onDegreesChosen = {},
             onRun = {},
             onReset = {},

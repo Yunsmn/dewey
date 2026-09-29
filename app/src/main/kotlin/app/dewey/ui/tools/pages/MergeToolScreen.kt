@@ -5,14 +5,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowDownward
-import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,6 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -40,6 +47,8 @@ import app.dewey.ui.tools.formatBytes
 import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfsPicker
 import app.dewey.ui.tools.rememberSaveAs
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @Composable
 fun MergeToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
@@ -51,13 +60,12 @@ fun MergeToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
     MergeToolContent(
         state = state,
         onPickMore = pickFiles,
-        onMoveUp = viewModel::moveUp,
-        onMoveDown = viewModel::moveDown,
+        onMove = viewModel::onMove,
         onRemove = viewModel::remove,
         onRun = {
             // A merge has no one source to derive a name from; the first file
             // in the order is as good a stem as any.
-            val stem = state.files.firstOrNull()?.name.orEmpty()
+            val stem = state.files.firstOrNull()?.file?.name.orEmpty()
             saveAs(derivedFileName(stem, "merged"))
         },
         onReset = viewModel::reset,
@@ -69,8 +77,7 @@ fun MergeToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
 private fun MergeToolContent(
     state: MergeUiState,
     onPickMore: () -> Unit,
-    onMoveUp: (Int) -> Unit,
-    onMoveDown: (Int) -> Unit,
+    onMove: (from: Int, to: Int) -> Unit,
     onRemove: (Int) -> Unit,
     onRun: () -> Unit,
     onReset: () -> Unit,
@@ -78,7 +85,7 @@ private fun MergeToolContent(
 ) {
     ToolScaffold(
         title = "Merge",
-        description = "Combine PDFs, in the order below, into one document. The originals stay as they are.",
+        description = "Combine PDFs into one document. Long-press a file and drag it to reorder the list.",
         state = state.runState,
         runLabel = "Merge and save",
         canRun = state.canRun,
@@ -89,16 +96,8 @@ private fun MergeToolContent(
         icon = ToolDestination.MERGE.icon,
     ) {
         FieldLabel("Files, in order")
-        state.files.forEachIndexed { index, file ->
-            MergeFileRow(
-                file = file,
-                position = index + 1,
-                canMoveUp = index > 0,
-                canMoveDown = index < state.files.lastIndex,
-                onMoveUp = { onMoveUp(index) },
-                onMoveDown = { onMoveDown(index) },
-                onRemove = { onRemove(index) },
-            )
+        if (state.files.isNotEmpty()) {
+            MergeFileList(files = state.files, onMove = onMove, onRemove = onRemove)
         }
         SecondaryAction(
             label = if (state.files.isEmpty()) "Choose PDFs" else "Add more",
@@ -108,22 +107,69 @@ private fun MergeToolContent(
     }
 }
 
+/**
+ * A fixed [height] rather than [Modifier.fillMaxSize] on purpose: this list
+ * sits inside ToolScaffold's own scrolling column, and a lazy list measured
+ * with no height bound inside a scrolling column throws — see
+ * [app.dewey.ui.tools.thumbnails.PageGrid]'s doc for the same fix on the same
+ * class of crash. Bounding it lets a long merge list scroll internally
+ * instead.
+ */
+@Composable
+private fun MergeFileList(
+    files: List<MergeFile>,
+    onMove: (from: Int, to: Int) -> Unit,
+    onRemove: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val haptics = LocalHapticFeedback.current
+    val listState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(listState) { from, to -> onMove(from.index, to.index) }
+
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxWidth().height((files.size.coerceAtMost(4) * MERGE_ROW_HEIGHT_DP + 8).dp),
+        contentPadding = PaddingValues(vertical = Dewey.spacing.hairline),
+    ) {
+        itemsIndexed(files, key = { _, entry -> entry.id }) { position, entry ->
+            ReorderableItem(reorderState, key = entry.id) { isDragging ->
+                MergeFileRow(
+                    file = entry.file,
+                    position = position + 1,
+                    isDragging = isDragging,
+                    onRemove = { onRemove(position) },
+                    dragHandleModifier = Modifier.longPressDraggableHandle(
+                        onDragStarted = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
+                    ),
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun MergeFileRow(
     file: PickedFile,
     position: Int,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
+    isDragging: Boolean,
     onRemove: () -> Unit,
+    dragHandleModifier: Modifier,
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth().padding(vertical = Dewey.spacing.hairline)) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth().padding(vertical = Dewey.spacing.hairline),
+        accent = if (isDragging) Dewey.colors.accent else null,
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.row),
             modifier = Modifier.fillMaxWidth(),
         ) {
+            Icon(
+                imageVector = Icons.Rounded.DragHandle,
+                contentDescription = "Drag to reorder",
+                tint = Dewey.colors.inkFaint,
+                modifier = dragHandleModifier,
+            )
             Text("$position", style = Dewey.type.Label, color = Dewey.colors.inkMuted)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -135,8 +181,6 @@ private fun MergeFileRow(
                 )
                 Text(formatBytes(file.sizeBytes), style = Dewey.type.Meta, color = Dewey.colors.inkMuted)
             }
-            RowIconButton(icon = Icons.Outlined.ArrowUpward, enabled = canMoveUp, onClick = onMoveUp)
-            RowIconButton(icon = Icons.Outlined.ArrowDownward, enabled = canMoveDown, onClick = onMoveDown)
             RowIconButton(icon = Icons.Outlined.Close, enabled = true, onClick = onRemove)
         }
     }
@@ -146,14 +190,16 @@ private fun MergeFileRow(
 private fun RowIconButton(icon: ImageVector, enabled: Boolean, onClick: () -> Unit) {
     Icon(
         imageVector = icon,
-        contentDescription = null,
+        contentDescription = "Remove this file",
         tint = if (enabled) Dewey.colors.inkMuted else Dewey.colors.inkFaint,
         modifier = Modifier
             .background(Color.Transparent, RoundedCornerShape(2.dp))
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(Dewey.spacing.tight),
     )
 }
+
+private const val MERGE_ROW_HEIGHT_DP = 64
 
 @Preview(showBackground = true, backgroundColor = 0xFF0B0F17, heightDp = 700, widthDp = 390)
 @Composable
@@ -162,14 +208,13 @@ private fun MergeToolScreenPreview() {
         MergeToolContent(
             state = MergeUiState(
                 files = listOf(
-                    PickedFile(Uri.EMPTY, "lease.pdf", 482_000),
-                    PickedFile(Uri.EMPTY, "addendum.pdf", 120_000),
-                    PickedFile(Uri.EMPTY, "signature-page.pdf", 40_000),
+                    MergeFile(1L, PickedFile(Uri.EMPTY, "lease.pdf", 482_000)),
+                    MergeFile(2L, PickedFile(Uri.EMPTY, "addendum.pdf", 120_000)),
+                    MergeFile(3L, PickedFile(Uri.EMPTY, "signature-page.pdf", 40_000)),
                 ),
             ),
             onPickMore = {},
-            onMoveUp = {},
-            onMoveDown = {},
+            onMove = { _, _ -> },
             onRemove = {},
             onRun = {},
             onReset = {},

@@ -11,37 +11,30 @@ class ReorderLogicTest {
     private val file = PickedFile(mockk<Uri>(relaxed = true), "lease.pdf", 1_000)
 
     @Test
-    fun `needs a file and a known page count`() {
-        assertThat(canRunReorder(null, 10, "1", "2")).isFalse()
-        assertThat(canRunReorder(file, null, "1", "2")).isFalse()
+    fun `identityOrder is every page, 0-based, in its original order`() {
+        assertThat(identityOrder(4)).containsExactly(0, 1, 2, 3).inOrder()
     }
 
     @Test
-    fun `both positions must parse as whole numbers`() {
-        assertThat(canRunReorder(file, 10, "", "2")).isFalse()
-        assertThat(canRunReorder(file, 10, "1", "")).isFalse()
-        assertThat(canRunReorder(file, 10, "abc", "2")).isFalse()
-        assertThat(canRunReorder(file, 10, "1.5", "2")).isFalse()
+    fun `needs a file, a known order, and a known page count`() {
+        assertThat(canRunReorder(null, identityOrder(10), 10)).isFalse()
+        assertThat(canRunReorder(file, null, 10)).isFalse()
+        assertThat(canRunReorder(file, identityOrder(10), null)).isFalse()
     }
 
     @Test
-    fun `both positions must be within the document`() {
-        assertThat(canRunReorder(file, 10, "0", "2")).isFalse()
-        assertThat(canRunReorder(file, 10, "1", "11")).isFalse()
+    fun `does not run while the order still matches the original`() {
+        assertThat(canRunReorder(file, identityOrder(10), 10)).isFalse()
     }
 
     @Test
-    fun `runs once both positions are valid page numbers`() {
-        assertThat(canRunReorder(file, 10, "5", "1")).isTrue()
+    fun `runs once the order differs from the original`() {
+        val moved = listOf(4, 0, 1, 2, 3)
+        assertThat(canRunReorder(file, moved, 5)).isTrue()
     }
 
     @Test
-    fun `moving a page to its own position still runs - PageOperations treats it as a no-op`() {
-        assertThat(canRunReorder(file, 10, "3", "3")).isTrue()
-    }
-
-    @Test
-    fun `describes which page moved to which position`() {
-        assertThat(reorderSummary(from = 5, to = 1)).isEqualTo("Moved page 5 to position 1")
+    fun `reports the new order was saved`() {
+        assertThat(reorderSummary()).isEqualTo("Saved the new page order.")
     }
 }

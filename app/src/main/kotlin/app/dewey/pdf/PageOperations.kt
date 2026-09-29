@@ -241,23 +241,54 @@ object PageOperations {
     /**
      * Moves the page at 1-based [from] to 1-based [to] within [document].
      *
-     * Rebuilds the page tree from scratch rather than calling
-     * [com.tom_roush.pdfbox.pdmodel.PDPageTree]'s `insertBefore`/`insertAfter`
-     * against a shifting index: the [PDDocument.getPage] objects are captured
-     * in their new order *before* anything is removed, because a page's
-     * index changes the moment an earlier page is removed but the object
-     * reference does not.
+     * Delegates to [rebuildPageTree] for the actual rewrite — see its doc for
+     * why a full rebuild rather than an in-place move.
      */
     fun reorder(document: PDDocument, from: Int, to: Int): Result<Unit> =
         parsePageMove(document.numberOfPages, from, to).mapCatching { newOrder ->
-            val pagesInNewOrder = newOrder.map { document.getPage(it) }
-            while (document.numberOfPages > 0) {
-                document.removePage(0)
-            }
-            for (page in pagesInNewOrder) {
-                document.addPage(page)
-            }
+            rebuildPageTree(document, newOrder)
         }
+
+    /**
+     * Rewrites [document]'s page order to exactly [newOrder] — 0-based
+     * original page indices, each appearing once.
+     *
+     * The one caller today is [app.dewey.ui.tools.thumbnails.PageGrid]'s
+     * reorder mode: dragging a page in the grid updates an in-memory order
+     * list one move at a time, and this applies the whole result in a single
+     * PDFBox edit rather than replaying every intermediate drag as its own
+     * [reorder] call. [newOrder] is trusted to be a permutation because it is
+     * built by moving elements within a list that started as every page
+     * exactly once (see `moveItem` in the same package) — the [require] below
+     * is a defensive check against that assumption breaking, not user input
+     * validation, so it fails as an ordinary exception rather than a
+     * [PageOperations.Issue] a screen would need its own wording for.
+     */
+    fun reorderTo(document: PDDocument, newOrder: List<Int>): Result<Unit> = runCatching {
+        val pageCount = document.numberOfPages
+        require(newOrder.size == pageCount && newOrder.toSet() == (0 until pageCount).toSet()) {
+            "newOrder must contain each of this document's $pageCount pages exactly once, got $newOrder"
+        }
+        rebuildPageTree(document, newOrder)
+    }
+
+    /**
+     * Rebuilds [document]'s page tree from scratch in [newOrder] rather than
+     * calling [com.tom_roush.pdfbox.pdmodel.PDPageTree]'s
+     * `insertBefore`/`insertAfter` against a shifting index: the
+     * [PDDocument.getPage] objects are captured in their new order *before*
+     * anything is removed, because a page's index changes the moment an
+     * earlier page is removed but the object reference does not.
+     */
+    private fun rebuildPageTree(document: PDDocument, newOrder: List<Int>) {
+        val pagesInNewOrder = newOrder.map { document.getPage(it) }
+        while (document.numberOfPages > 0) {
+            document.removePage(0)
+        }
+        for (page in pagesInNewOrder) {
+            document.addPage(page)
+        }
+    }
 
     /**
      * Removes the pages named by [spec] from [document].

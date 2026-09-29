@@ -1,19 +1,16 @@
 package app.dewey.ui.tools.pages
 
-import app.dewey.ui.tools.ToolTextField
 import android.net.Uri
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.dewey.pdf.PageThumbnailSource
 import app.dewey.pdf.PdfToolkit
-import app.dewey.ui.theme.Dewey
+import app.dewey.ui.components.SecondaryAction
 import app.dewey.ui.theme.DeweyTheme
 import app.dewey.ui.tools.FieldLabel
 import app.dewey.ui.tools.FileSlot
@@ -24,6 +21,8 @@ import app.dewey.ui.tools.derivedFileName
 import app.dewey.ui.tools.hue
 import app.dewey.ui.tools.rememberPdfPicker
 import app.dewey.ui.tools.rememberSaveAs
+import app.dewey.ui.tools.thumbnails.PageGrid
+import app.dewey.ui.tools.thumbnails.PageGridMode
 
 @Composable
 fun ReorderToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
@@ -34,9 +33,10 @@ fun ReorderToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
 
     ReorderToolContent(
         state = state,
+        thumbnailSource = viewModel.thumbnails,
         onPickFile = pickFile,
-        onFromChanged = viewModel::onFromChanged,
-        onToChanged = viewModel::onToChanged,
+        onMove = viewModel::onMove,
+        onResetOrder = viewModel::resetOrder,
         onRun = { saveAs(derivedFileName(state.file?.name.orEmpty(), "reordered")) },
         onReset = viewModel::reset,
         modifier = modifier,
@@ -46,51 +46,42 @@ fun ReorderToolScreen(toolkit: PdfToolkit, modifier: Modifier = Modifier) {
 @Composable
 private fun ReorderToolContent(
     state: ReorderUiState,
+    thumbnailSource: PageThumbnailSource,
     onPickFile: () -> Unit,
-    onFromChanged: (String) -> Unit,
-    onToChanged: (String) -> Unit,
+    onMove: (from: Int, to: Int) -> Unit,
+    onResetOrder: () -> Unit,
     onRun: () -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val hue = ToolDestination.REORDER.group.hue
+
     ToolScaffold(
         title = "Reorder",
-        description = "Move one page to a new position. Everything between shifts to make room.",
+        description = "Long-press a page and drag it where it belongs. Everything between shifts to make room.",
         state = state.runState,
         runLabel = "Reorder and save",
         canRun = state.canRun,
         onRun = onRun,
         onReset = onReset,
         modifier = modifier,
-        hue = ToolDestination.REORDER.group.hue,
+        hue = hue,
         icon = ToolDestination.REORDER.icon,
     ) {
         FieldLabel("Document")
-        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile, hue = ToolDestination.REORDER.group.hue)
+        FileSlot(file = state.file, prompt = "Choose a PDF", onPick = onPickFile, hue = hue)
 
         if (state.file != null) {
             PageCountHint(state.pageCount)
-            Row(horizontalArrangement = Arrangement.spacedBy(Dewey.spacing.gutter)) {
-                Column(modifier = Modifier.weight(1f)) {
-                    FieldLabel("Move page")
-                    ToolTextField(
-                        value = state.fromText,
-                        onValueChange = onFromChanged,
-                        placeholder = "e.g. 5",
-                        keyboardType = KeyboardType.Number,
-                        hue = ToolDestination.REORDER.group.hue,
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    FieldLabel("To position")
-                    ToolTextField(
-                        value = state.toText,
-                        onValueChange = onToChanged,
-                        placeholder = "e.g. 1",
-                        keyboardType = KeyboardType.Number,
-                        hue = ToolDestination.REORDER.group.hue,
-                    )
-                }
+            val order = state.order
+            if (order != null) {
+                SecondaryAction(label = "Reset order", onClick = onResetOrder)
+                PageGrid(
+                    mode = PageGridMode.Reorder(order = order, onMove = onMove),
+                    thumbnailSource = thumbnailSource,
+                    file = state.file,
+                    hue = hue,
+                )
             }
         }
     }
@@ -100,16 +91,15 @@ private fun ReorderToolContent(
 @Composable
 private fun ReorderToolScreenPreview() {
     DeweyTheme {
+        val context = LocalContext.current
         ReorderToolContent(
-            state = ReorderUiState(
-                file = PickedFile(Uri.EMPTY, "lease.pdf", 482_000),
-                pageCount = 12,
-                fromText = "5",
-                toText = "1",
-            ),
+            // order left null — see ExtractToolScreenPreview's comment; the
+            // grid needs a real PageThumbnailSource to mount.
+            state = ReorderUiState(file = PickedFile(Uri.EMPTY, "lease.pdf", 482_000)),
+            thumbnailSource = PageThumbnailSource(context.contentResolver, context.cacheDir),
             onPickFile = {},
-            onFromChanged = {},
-            onToChanged = {},
+            onMove = { _, _ -> },
+            onResetOrder = {},
             onRun = {},
             onReset = {},
         )

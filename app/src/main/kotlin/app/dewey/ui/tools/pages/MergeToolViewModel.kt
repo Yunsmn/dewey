@@ -10,17 +10,31 @@ import app.dewey.pdf.flatten
 import app.dewey.pdf.saveOpenDocument
 import app.dewey.ui.tools.PickedFile
 import app.dewey.ui.tools.ToolRunState
+import app.dewey.ui.tools.thumbnails.moveItem
 import app.dewey.ui.tools.toolFailureMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * One picked file in the merge list, plus an [id] stable across reorders and
+ * independent of [file]'s own content.
+ *
+ * A drag-reorderable list needs a key that stays with an item as it moves —
+ * see [app.dewey.ui.tools.thumbnails.PageGrid]'s doc for the same
+ * requirement over pages — and [PickedFile] is a data class keyed on its own
+ * fields, so the same physical PDF added twice (picked once, then "Add more"
+ * used to pick it again) would produce two equal [PickedFile]s and collide as
+ * a list key. [id] exists only to rule that out.
+ */
+data class MergeFile(val id: Long, val file: PickedFile)
+
 data class MergeUiState(
-    val files: List<PickedFile> = emptyList(),
+    val files: List<MergeFile> = emptyList(),
     val runState: ToolRunState = ToolRunState.Idle,
 ) {
-    val canRun: Boolean get() = canRunMerge(files) && runState !is ToolRunState.Running
+    val canRun: Boolean get() = canRunMerge(files.map { it.file }) && runState !is ToolRunState.Running
 }
 
 /**
@@ -38,15 +52,13 @@ class MergeToolViewModel(private val toolkit: PdfToolkit) : ViewModel() {
     val state: StateFlow<MergeUiState> = _state.asStateFlow()
 
     fun addFiles(newFiles: List<PickedFile>) {
-        _state.value = _state.value.copy(files = _state.value.files + newFiles)
+        val entries = newFiles.map { MergeFile(id = System.nanoTime(), file = it) }
+        _state.value = _state.value.copy(files = _state.value.files + entries)
     }
 
-    fun moveUp(index: Int) {
-        _state.value = _state.value.copy(files = moveUp(_state.value.files, index))
-    }
-
-    fun moveDown(index: Int) {
-        _state.value = _state.value.copy(files = moveDown(_state.value.files, index))
+    /** Reorders the file list by dragging — see [app.dewey.ui.tools.thumbnails.PageGrid]'s reorder mode for the same gesture over pages. */
+    fun onMove(from: Int, to: Int) {
+        _state.value = _state.value.copy(files = moveItem(_state.value.files, from, to))
     }
 
     fun remove(index: Int) {
@@ -59,7 +71,7 @@ class MergeToolViewModel(private val toolkit: PdfToolkit) : ViewModel() {
     }
 
     fun run(target: Uri) {
-        val files = _state.value.files
+        val files = _state.value.files.map { it.file }
         if (!canRunMerge(files)) return
         _state.value = _state.value.copy(runState = ToolRunState.Running)
 
