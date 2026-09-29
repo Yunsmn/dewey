@@ -16,6 +16,7 @@ import app.dewey.ui.tools.derivedFileName
 import app.dewey.ui.tools.toolFailureMessage
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,6 +70,7 @@ class SignToolViewModel(
 
     private val _state = MutableStateFlow(SignUiState())
     val state: StateFlow<SignUiState> = _state.asStateFlow()
+    private var previewJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -209,13 +211,19 @@ class SignToolViewModel(
     }
 
     private fun loadPreviewIfValid() {
+        // One render at a time: a newer page (or no valid page at all) makes
+        // the one in flight pointless, and must not leave its spinner behind.
+        previewJob?.cancel()
         val current = _state.value
-        val source = current.source ?: return
-        val count = current.pageCount ?: return
-        val page = current.pageNumber ?: return
-        if (page !in 1..count) return
+        val page = current.pageNumber
+        val count = current.pageCount
+        val source = current.source
+        if (source == null || count == null || page == null || page !in 1..count) {
+            if (current.previewLoading) _state.value = current.copy(previewLoading = false)
+            return
+        }
 
-        viewModelScope.launch {
+        previewJob = viewModelScope.launch {
             _state.value = _state.value.copy(previewLoading = true)
             val result = renderPageForSignature(
                 resolver = toolkit.resolver,

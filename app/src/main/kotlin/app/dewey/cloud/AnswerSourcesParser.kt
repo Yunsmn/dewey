@@ -23,6 +23,12 @@ private const val SOURCES_SEARCH_LINES = 3
 private fun String.withoutMarkdown(): String =
     replace(Regex("""[*_\[\]`]"""), "").trim().removePrefix("-").removePrefix("•").trim()
 
+/** "none", or a comma-separated list of numbers. */
+private fun String.looksLikeCitations(): Boolean {
+    val body = trim().removeSuffix(".").trim()
+    return body.equals("none", ignoreCase = true) || body.split(",").all { it.trim().toIntOrNull() != null }
+}
+
 /** Case-insensitive by design — see [parseAnswerSources]'s own KDoc. */
 private val SOURCES_LINE = Regex("""sources\s*:\s*(.*)""", RegexOption.IGNORE_CASE)
 
@@ -51,9 +57,13 @@ internal fun parseAnswerSources(rawText: String, passageCount: Int): ParsedAnswe
     // The last few non-blank lines, newest first: Flash-Lite sometimes adds a
     // closing sentence after the line, or dresses it in Markdown
     // ("**SOURCES:** [1, 3]"), and either used to leave it in the answer.
+    // Above the last line, only a line that reads as a real citation list
+    // counts, so an answer sentence like "Sources: your March bill" is left in.
     val candidates = lines.indices.reversed().filter { lines[it].isNotBlank() }.take(SOURCES_SEARCH_LINES)
-    val (lineIndex, match) = candidates.firstNotNullOfOrNull { index ->
-        SOURCES_LINE.matchEntire(lines[index].withoutMarkdown())?.let { index to it }
+    val (lineIndex, match) = candidates.withIndex().firstNotNullOfOrNull { (position, index) ->
+        SOURCES_LINE.matchEntire(lines[index].withoutMarkdown())
+            ?.takeIf { position == 0 || it.groupValues[1].looksLikeCitations() }
+            ?.let { index to it }
     } ?: return ParsedAnswer(text = trimmed, citedPassageNumbers = null)
 
     val body = match.groupValues[1].trim().removeSuffix(".").trim()

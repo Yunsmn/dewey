@@ -112,7 +112,7 @@ private fun SignInForm(
     )
     Spacer(Modifier.height(Dewey.spacing.row))
     PrimaryAction(
-        label = if (isBusy) "Signing in…" else "Sign in",
+        label = if (isBusy) "One moment…" else "Sign in",
         onClick = { if (!isBusy) onSignIn(email, password) },
     )
     Spacer(Modifier.height(Dewey.spacing.tight))

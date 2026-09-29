@@ -1,45 +1,130 @@
-# Dewey
+<p align="center">
+  <img src="docs/press/logo.png" alt="Dewey" width="360">
+</p>
 
-An Android document app that finds the file you can't name.
+<p align="center">
+  <b>An Android document app that finds the file you can't name.</b><br>
+  On-device search and sorting · a complete free PDF toolkit · a paid tier on RevenueCat
+</p>
+
+<p align="center">
+  <a href="#what-it-does">What it does</a> ·
+  <a href="#revenuecat">RevenueCat</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#build">Build</a> ·
+  <a href="#whats-not-done">What's not done</a>
+</p>
+
+---
 
 Everyone's Downloads folder has a `2847373.pdf` in it. You remember it was the
 electricity bill from the month the meter was replaced. You do not remember that
-it is called `2847373.pdf`. Dewey is built around that gap.
+it is called `2847373.pdf`. Dewey is built around that gap: it reads every PDF
+you point it at, **on the phone**, files each one into a folder it creates, and
+answers questions about them in plain language.
 
-**Status:** in development for RevenueCat Shipaton 2026. See
-[What's not done](#whats-not-done) for the honest state of things.
+Built for **RevenueCat Shipaton 2026**. The corpus it is built and measured
+against is Moroccan: French, Arabic and English, often in one document.
+
+| | |
+|---|---|
+| **Sorts a folder** | 97 of 100 test documents filed, **none wrong**; the other 3 held for review rather than guessed. Undoable. |
+| **Finds by meaning** | 81% recall@1, 95% recall@3 over the test corpus, in three languages. |
+| **Sends nothing to sort** | Classification is a nearest-neighbour lookup on on-device embeddings. No network call. |
+| **Monetised honestly** | The scanner and all 14 PDF tools are free, with no ads. The paywall sells the part that reads your documents for you. |
 
 ---
 
 ## What it does
 
-**Free, with no ads and no account.**
+### Free, with no ads and no account
 
-- Document scanner with edge detection, perspective correction, multi-page capture
-- OCR over scanned pages
-- PDF toolkit: merge; extract, rotate, reorder and delete pages; PDF to images
-  and images to PDF; compress; add or remove a password; watermark; page numbers
-- Recent scans and tool results on Home, and a Quick scan home-screen widget
+- **Scanner.** Edge detection, perspective correction, multi-page capture, OCR.
+- **Fourteen PDF tools**, each writing a new file and never over the original:
+  merge, split, extract, rotate, reorder and delete pages; PDF to images and
+  images to PDF; compress; add or remove a password; watermark; page numbers;
+  and **sign** (draw a signature once, place it on any page).
+- **Page grids.** The page tools open a PDF as thumbnails. Drag to reorder;
+  tap to pick pages to extract, delete or rotate; tap expand for a page full screen.
+- Recent files on Home, and a **Quick scan** home-screen widget.
 
-**The Librarian — a paid tier, gated by a RevenueCat entitlement.**
+### Librarian, the paid tier (a RevenueCat entitlement)
 
-- **Documents.** Link a folder and browse it by category. Find a document by what
-  it was about, not what it was named.
-- **Sort.** It reads every PDF, works out what each one is, creates folders, and
-  moves them. Files it isn't sure about go to a review queue rather than
-  interrupting you four hundred times, and the whole sort can be undone.
-- **Ask.** An assistant that answers questions from what is actually in your
-  files, and shows the documents it used. Capped at 50 questions a day.
+- **Documents.** Link a folder and browse it by what each document *is*: bills,
+  statements, contracts, medical, tax, papers, and more.
+- **Sort.** Reads every PDF, works out what it is, creates folders and moves it.
+  Unsure files go to a review queue instead of being guessed. The whole sort can be undone.
+- **Ask.** An assistant that answers from what is actually in your files and
+  shows the documents it used. "When is the Lydec bill due?" works in French and
+  Arabic documents too. Capped at 50 questions a day.
 - **Bills and notes.** Detected bills with vendor, amount and due date, grouped
-  by how soon they are due, and notes of your own, standalone or attached to a
-  bill. Both are also home-screen widgets.
+  by how soon they are due, plus notes of your own, standalone or pinned to a
+  bill. Both are home-screen widgets.
 
-The free tier is deliberately a complete scanner and PDF app. What the paywall
-sells is the part that reads your documents for you.
+### An optional account
+
+Sign in with an email on the Me tab and Librarian follows you to a new phone.
+The account holds no documents; they stay on the device either way. Details in
+[RevenueCat](#revenuecat).
 
 ---
 
-## Architecture
+## RevenueCat
+
+The paid tier is one RevenueCat entitlement, `dewey_app_pro`, sold through two
+packages (monthly and annual) on the current offering. Every part of the purchase
+path goes through the SDK. None of it is hardcoded.
+
+| What | Where | SDK |
+|---|---|---|
+| Configure at app start, with the signed-in user's id if there is one | [`billing/Entitlements.kt`](app/src/main/kotlin/app/dewey/billing/Entitlements.kt) | `Purchases.configure`, `PurchasesConfiguration.Builder.appUserID` |
+| Live entitlement state for every screen | same | `UpdatedCustomerInfoListener`, `awaitCustomerInfo`, `entitlements[…].isActive` |
+| A paywall drawn by the app, with prices from the dashboard | [`ui/billing/paywall/`](app/src/main/kotlin/app/dewey/ui/billing/paywall) | `awaitOfferings().current`, `Package`, `StoreProduct.price`, `pricePerMonth`, `period`, free-trial detection |
+| Buying | [`RevenueCatLibrarianBilling.kt`](app/src/main/kotlin/app/dewey/ui/billing/paywall/RevenueCatLibrarianBilling.kt) | `awaitPurchase(PurchaseParams)`, on `Dispatchers.Main.immediate` |
+| Restoring, which only reports success if Librarian actually came back | same, and the Me tab | `awaitRestore` |
+| Identity: signing in makes the RevenueCat customer the account, not the install | [`auth/Account.kt`](app/src/main/kotlin/app/dewey/auth/Account.kt), `Entitlements.identify/forget` | `awaitLogIn`, `awaitLogOut`, `isAnonymous`, `setEmail` |
+| Self-serve subscription help: restore, cancel, change plan | [`ui/me/MeScreen.kt`](app/src/main/kotlin/app/dewey/ui/me/MeScreen.kt) | `CustomerCenter` from `purchases-ui` |
+| Manage subscription link | [`ui/me/MeViewModel.kt`](app/src/main/kotlin/app/dewey/ui/me/MeViewModel.kt) | `CustomerInfo.managementURL` |
+
+The core of it:
+
+```kotlin
+// billing/Entitlements.kt — configured before anything can ask whether a feature is unlocked
+Purchases.configure(
+    PurchasesConfiguration.Builder(context, BuildConfig.REVENUECAT_KEY)
+        .apply { if (appUserId != null) appUserID(appUserId) }
+        .build()
+)
+Purchases.sharedInstance.updatedCustomerInfoListener =
+    UpdatedCustomerInfoListener { info -> state.value = info.entitlements[LIBRARIAN]?.isActive == true }
+
+// Signing in: whatever was bought anonymously on this phone moves to the account.
+state.value = Purchases.sharedInstance.awaitLogIn(userId).customerInfo.hasLibrarian()
+```
+
+**Why a custom paywall.** It is drawn in the app's own design, but it is still
+data-driven. The offering and every price come live from the dashboard, the
+"Save N%" badge is computed from the two products' real prices, the struck-through
+"a year paid monthly" price only appears when there is a real saving, and a free
+trial is only mentioned when a product actually has one. The paywall appears
+where the value is: on the locked Documents, Notes and assistant screens, which
+show what they would do before asking for anything.
+
+**Purchases are simulated.** This entry is judged on a repo and a video and is
+never going to a store, so it uses RevenueCat's **Test Store**: a self-contained
+sandbox with no Play Console and no real products. RevenueCat refuses a Test
+Store key in a non-debuggable build (rightly, since such a key earns nothing), so
+there is a separate `demo` build type. The `release` variant carries no purchase
+key at all, which is a stronger guarantee that a test key cannot reach a store
+than remembering not to ship one.
+
+**No key, no lock.** A clone with no `revenuecat.properties` unlocks every
+feature instead of locking them. There is nothing to buy without a purchase
+system, and a repo someone clones to read should run.
+
+---
+
+## How it works
 
 ### Storage: SAF, not `MANAGE_EXTERNAL_STORAGE`
 
@@ -96,6 +181,8 @@ Stated precisely, because vague privacy claims are worse than none:
 - **Sorting sends nothing.** Classification is a nearest-neighbour lookup against
   on-device embeddings, so filing four hundred documents makes no network call.
 - **Purchases go through RevenueCat**, which is how the entitlement is checked.
+- **The optional account** sends its email and password to Firebase
+  Authentication, and its user id and email to RevenueCat as the customer id.
 
 This is not an offline app and it does not claim to be.
 
@@ -129,27 +216,6 @@ Every move is written to an undo log as it happens, so an interrupted sort is
 still reversible, and the button that reverses it sits next to the one that
 starts it.
 
-### Purchases: RevenueCat, on the Test Store
-
-The paid tier is gated by a RevenueCat entitlement. The paywall is drawn by the
-app, in its own design, but the offering and every price on it come live from
-the RevenueCat dashboard: nothing is hardcoded, the "Save N%" badge is computed
-from the two products' actual prices, and a free trial is only mentioned when a
-product has one. Buying goes through the SDK's own purchase flow.
-
-**Purchases are simulated.** This entry is judged on a repo and a video and is
-never going to a store, so it uses RevenueCat's Test Store: a self-contained
-sandbox needing no Play Console and no real products. That is a deliberate
-choice, not an unfinished one. RevenueCat refuses a Test Store key in a
-non-debuggable build — rightly, since such a key earns nothing — which is why
-there is a separate `demo` build type. The `release` variant carries no purchase
-key at all, which is a stronger guarantee that a test key cannot reach a store
-than remembering not to ship one.
-
-A clone with no `revenuecat.properties` unlocks every feature rather than
-locking them. There is nothing to buy without a purchase system, and a repo
-someone clones to read should run.
-
 ### Cloud access: Firebase AI Logic
 
 The repo is public, so an API key cannot live in it. Firebase AI Logic proxies
@@ -177,7 +243,7 @@ Requires JDK 17 and the Android SDK. Both live under `$HOME` in this setup — n
 root, nothing installed system-wide:
 
 ```
-git clone <this repo> && cd document-archive
+git clone https://github.com/Yunsmn/dewey && cd dewey
 . scripts/env.sh          # JAVA_HOME, ANDROID_HOME, PATH
 ./gradlew assembleDebug
 ```
@@ -242,51 +308,49 @@ python -m venv .venv && ./.venv/bin/pip install -r tools/corpus/requirements.txt
 
 Writes `tools/corpus/corpus/` and a `ground_truth.json` answer key.
 
+### Tests
+
+```
+./gradlew :app:testDemoUnitTest
+```
+
+Around 780 JVM unit tests, including PDFBox round trips on real documents and
+the tokenizer checked token for token against HuggingFace.
+
 ---
 
 ## What's not done
 
 Kept current and honest.
 
-- [x] Stage 1 — storage, extraction, on-device index. Verified on device against
-      114 real documents, including a 1012-page scan with no text layer.
-- [x] Stage 2 — find. Hybrid retrieval on device, with the cloud answer layer
-      wired through Firebase AI Logic.
-- [x] Stage 3 — sort. Classification, folder creation, moves, review queue and
-      undo, confirmed end to end on a signed build: 96 of 114 documents filed
-      into 11 folders, the rest held back for review.
-- [x] Stage 4 — bills dashboard
-- [x] Stage 5 — RevenueCat paywall. Test Store, so purchases are simulated and
-      earn nothing — see [Cloud access](#cloud-access-firebase-ai-logic) below
-      for why that is deliberate rather than unfinished.
-- [x] Stage 7 — the app as it is now: four tabs (Home, Documents, Notes, Me) in
-      light and dark, a hand-built paywall, notes attached to bills, a
-      full-screen assistant, and home-screen widgets. Checked on the emulator:
-      both themes; a Test Store purchase through the new paywall unlocking the
-      paid tabs; a database upgrade keeping existing documents; a note attached
-      to a bill and counted on it; the assistant answering bill questions from
-      the documents in about 9 seconds and counting down its daily 50; the
-      three widgets registered, with their taps opening the scanner and Notes.
-      Since then also checked: the paywall's "Welcome to Librarian"
-      confirmation after buying from a locked tab, the struck-through price
-      of a year paid monthly on the annual plan, the Me tab's settings and
-      theme switch, and the assistant citing only the documents an answer
-      used. Not yet checked: the widgets placed on a real launcher rather than
-      opened by intent.
-- [~] Stage 6 — PDF toolkit. Thirteen tools on Home, each writing a
-      new file and never over the original. Checked on the emulator by reading
-      the output bytes back: compress (which says so when the result comes out
-      larger), add a password (AES, no readable text left in the file), remove a
-      password (a wrong one fails and leaves no empty file behind), watermark and
-      page numbers. Merge, extract, rotate, reorder, delete pages, the image
-      conversions and the scanner are unit-tested but not yet run on a device.
+- [x] **Storage, extraction, on-device index.** Verified on a device against 114
+      real documents, including a 1012-page scan with no text layer.
+- [x] **Find.** Hybrid retrieval on the device, with the answer layer on Gemini
+      through Firebase AI Logic.
+- [x] **Sort.** Classification, folder creation, moves, review queue and undo,
+      confirmed end to end on a signed build: 96 of 114 real documents filed into
+      11 folders, the rest held back for review.
+- [x] **Bills, notes, widgets, the assistant, the Me tab, light and dark.**
+      Checked on the emulator, including the assistant answering bill questions
+      from French and Arabic documents in 7 to 12 seconds.
+- [x] **RevenueCat purchase.** A Test Store purchase through the custom paywall
+      unlocks the paid tabs.
+- [x] **PDF toolkit.** Merge, extract, rotate, delete and reorder checked on a
+      device by reading the output PDFs back. So were password protect and
+      unlock, watermark, page numbers, compress, and PDF to and from images.
+- [ ] **Not yet checked on a device:** the page-thumbnail grids, Sign, Split,
+      the optional account, and the Customer Center screen. They are unit-tested
+      where they have logic worth testing, but nobody has used them on a screen yet.
+- [ ] **Widgets on a real launcher**, rather than opened by intent.
+- [ ] **App Check.** Not wired up, so the Firebase config in an APK could be
+      reused from outside the app.
 
 Measured, not asserted: retrieval is 81% recall@1 and 95% recall@3 over the test
-corpus; classification files 97 of 100 documents with none wrong, across thirteen categories, and the app also learns
-categories from folders you already keep — a folder of your own documents
-describes them about three times more sharply than any description we wrote
-(margin 0.089 against 0.027, leave-one-out). Every harness is in `tools/eval/`
-and can be re-run.
+corpus; classification files 97 of 100 documents with none wrong across thirteen
+categories. The app also learns categories from folders you already keep: a
+folder of your own documents describes them about three times more sharply than
+any description we wrote (margin 0.089 against 0.027, leave-one-out). Every
+harness is in `tools/eval/` and can be re-run.
 
 ---
 
