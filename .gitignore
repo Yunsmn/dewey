@@ -59,3 +59,7 @@ demo/footage/
 *.local.md
 docs/NEEDS_YOU.md
 docs/handoff-*.md
+
+# Never the TTS key
+demo/.elevenlabs-key
+*.key

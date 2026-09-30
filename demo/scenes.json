@@ -6,9 +6,8 @@
       "id": "01-hook",
       "kind": "downloads",
       "sentences": [
-        "This is my Downloads folder. Everything important I own is in here somewhere.",
-        "My rent contract, three months of bills, the medical note the university asked me for twice.",
-        "All of them called things like document five, or I M G four four three one."
+        "This is my Downloads folder. My rent contract, three months of bills, the medical note the university asked me for twice.",
+        "Every one of them called something like document five, or I M G four four three one."
       ]
     },
     {
@@ -27,8 +26,9 @@
       "sentences": [
         "So I tap sort. Once.",
         "Dewey opens every file and reads it, right on the phone. French, Arabic, English, even photos of paper.",
-        "It can tell a bill from a contract from a doctor's note, makes the folders, and puts everything away.",
-        "The two it wasn't sure about, it left alone and flagged them, because the wrong folder is worse than no folder.",
+        "It tells a bill from a contract from a doctor's note, makes the folders, puts everything away.",
+        "Ninety eight filed, into eleven folders.",
+        "The two it wasn't sure about it left alone, because the wrong folder is worse than no folder.",
         "Nothing got uploaded. And one tap puts it all back."
       ]
     },
@@ -47,7 +47,7 @@
       "sentences": [
         "And when you cannot remember which file it was, you just ask.",
         "When is my Lydec bill due, and how much is it.",
-        "Five bills, the amounts, the dates, all of them already late. It takes that straight from the documents, and shows you which ones it used."
+        "Five bills, amounts, dates, all of them already late, straight from the documents themselves."
       ]
     },
     {
@@ -100,7 +100,8 @@
       "id": "09-close",
       "kind": "close",
       "sentences": [
-        "That is Dewey. It finds the file you cannot name."
+        "That is Dewey. It finds the file you cannot name.",
+        "Open source, on GitHub."
       ]
     }
   ]

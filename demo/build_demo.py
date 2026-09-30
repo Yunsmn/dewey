@@ -146,6 +146,43 @@ class Narrator:
         return samples
 
 
+class ElevenNarrator:
+    """Narration from ElevenLabs, with the same interface as [Narrator].
+
+    Kokoro reads the script correctly but flatly, and the demo lives or dies on
+    whether a judge keeps watching. Audio is cached per sentence, so re-rendering
+    a cut after changing one line costs one line's worth of characters.
+
+    The key is read from a file outside the repo and never written into it.
+    """
+
+    def __init__(self, voice_id: str, key_path: Path, model: str = "eleven_multilingual_v2"):
+        self.voice_id, self.model = voice_id, model
+        self.key = key_path.read_text().strip()
+
+    def say(self, text: str) -> np.ndarray:
+        key = hashlib.sha1(f"eleven|{self.voice_id}|{self.model}|{text}".encode()).hexdigest()[:16]
+        path = CACHE / "tts-eleven" / f"{key}.wav"
+        if not path.exists():
+            body = json.dumps({
+                "text": text,
+                "model_id": self.model,
+                "voice_settings": {"stability": 0.4, "similarity_boost": 0.75, "style": 0.35, "use_speaker_boost": True},
+            }).encode()
+            request = urllib.request.Request(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{self.voice_id}?output_format=pcm_{SAMPLE_RATE}",
+                data=body,
+                headers={"xi-api-key": self.key, "Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(request, timeout=120) as response:
+                pcm = response.read()
+            samples = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+            path.parent.mkdir(parents=True, exist_ok=True)
+            sf.write(path, samples, SAMPLE_RATE)
+        samples, _ = sf.read(path, dtype="float32")
+        return samples
+
+
 @dataclass
 class Line:
     text: str
@@ -437,19 +474,22 @@ def compose(scene: dict, index: int, duration: float, lines: list[Line], wav: Pa
         stream = f"[s{k}]"
         next_input += 1
 
-    # A slow push in or pull out across the scene, alternating, so no shot is
-    # ever completely still. zoompan works in whole pixels, which judders at
-    # this speed, so the frame is enlarged first and the move happens in that
-    # larger frame before it is scaled back down.
-    frames = max(int(duration * FPS), 2)
-    zoom_in = scene.get("motion", "in" if index % 2 == 0 else "out") == "in"
-    z = f"1+{MOTION_ZOOM}*on/{frames}" if zoom_in else f"{1 + MOTION_ZOOM}-{MOTION_ZOOM}*on/{frames}"
+    # Still cards drift slowly so they are not dead on screen. Footage scenes
+    # never do: the emulator recorded far below 30fps, and resampling a clip
+    # that is already duplicating frames turns a steady screen into a twitchy
+    # one. The app provides its own movement.
+    if not has_footage and MOTION_ZOOM > 0:
+        frames = max(int(duration * FPS), 2)
+        zoom_in = scene.get("motion", "in" if index % 2 == 0 else "out") == "in"
+        z = f"1+{MOTION_ZOOM}*on/{frames}" if zoom_in else f"{1 + MOTION_ZOOM}-{MOTION_ZOOM}*on/{frames}"
+        filters.append(
+            f"{stream}scale={int(W * 1.5)}:{int(H * 1.5)}:flags=bicubic,"
+            f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={W}x{H}:fps={FPS}[moved]"
+        )
+        stream = "[moved]"
+
     filters.append(
-        f"{stream}scale={int(W * 1.5)}:{int(H * 1.5)}:flags=bicubic,"
-        f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={W}x{H}:fps={FPS}[moved]"
-    )
-    filters.append(
-        f"[moved]fade=t=in:st=0:d={FADE},fade=t=out:st={duration - FADE:.3f}:d={FADE},format=yuv420p[v]"
+        f"{stream}fps={FPS},fade=t=in:st=0:d={FADE},fade=t=out:st={duration - FADE:.3f}:d={FADE},format=yuv420p[v]"
     )
     inputs += ["-i", str(wav)]
     out = work / f"{scene['id']}.mp4"
@@ -470,6 +510,7 @@ def main() -> None:
     parser.add_argument("--voice")
     parser.add_argument("--speed", type=float)
     parser.add_argument("--only", help="build a single scene id, for checking one clip")
+    parser.add_argument("--eleven-key", help="path to a file holding an ElevenLabs API key; switches narration to ElevenLabs")
     args = parser.parse_args()
 
     spec = json.loads((ROOT / "scenes.json").read_text())
@@ -480,7 +521,7 @@ def main() -> None:
     work.mkdir(parents=True, exist_ok=True)
 
     FONTS.update(font_files())
-    narrator = Narrator(voice, speed)
+    narrator = ElevenNarrator(voice, Path(args.eleven_key)) if args.eleven_key else Narrator(voice, speed)
 
     segments, srt, clock = [], [], 0.0
     for scene in spec["scenes"]:
