@@ -71,12 +71,17 @@ FONTSOURCE = {
     "mono": ("@fontsource/jetbrains-mono", "jetbrains-mono-latin-{w}-normal.woff2", [400, 700]),
 }
 
-# Screen rectangle of the phone in phone scenes: a 1080x2400 recording scaled to 880 tall.
-PHONE_H = 860
+# The recording fills the frame: a 1080x2400 capture at nearly full height,
+# centred, with a blurred copy of itself behind it so the 16:9 frame is filled
+# by the app rather than by a panel of text about the app.
+PHONE_H = 960
 PHONE_W = round(PHONE_H * 1080 / 2400)
-PHONE_X = 560 - PHONE_W // 2
-PHONE_Y = 58
+PHONE_X = (1920 - PHONE_W) // 2
+PHONE_Y = 16  # sits high, so the caption band at the bottom never covers the app
 PHONE_RADIUS = 34
+
+# How far a scene drifts across its own length: enough to feel alive, not enough to notice.
+MOTION_ZOOM = 0.055
 
 
 # -- fetching -----------------------------------------------------------------
@@ -216,36 +221,40 @@ def rounded_icon(size: int) -> Image.Image:
 
 
 def phone_plate(scene: dict, has_footage: bool) -> Image.Image:
-    img = backdrop()
-    draw = ImageDraw.Draw(img)
-    # Bezel.
-    bezel = 14
-    draw.rounded_rectangle(
-        [PHONE_X - bezel, PHONE_Y - bezel, PHONE_X + PHONE_W + bezel, PHONE_Y + PHONE_H + bezel],
-        radius=PHONE_RADIUS + bezel, fill=(0x05, 0x07, 0x0D, 255), outline=(0x2A, 0x31, 0x48, 255), width=3,
-    )
-    draw.rounded_rectangle(
-        [PHONE_X, PHONE_Y, PHONE_X + PHONE_W, PHONE_Y + PHONE_H], radius=PHONE_RADIUS, fill=SURFACE + (255,)
-    )
-    if not has_footage:
-        f_head, f_body = font("inter-800", 30), font("inter-500", 22)
-        draw.text((PHONE_X + PHONE_W / 2, PHONE_Y + 300), "RECORD", font=f_head, fill=AMBER + (255,), anchor="mm")
-        draw.text((PHONE_X + PHONE_W / 2, PHONE_Y + 340), scene["footage"], font=f_body, fill=MUTED + (255,), anchor="mm")
-        for i, line in enumerate(wrap(draw, scene["record"], f_body, PHONE_W - 60)):
-            draw.text((PHONE_X + 30, PHONE_Y + 390 + i * 30), line, font=f_body, fill=INK + (255,))
+    """The only graphics over a footage scene: a logo, and the name of what is happening.
 
-    # Panel.
-    x = 1010
-    draw.text((x, 230), scene["kicker"].upper(), font=font("inter-700", 26), fill=ACCENT + (255,))
-    y = 280
-    for line in wrap(draw, scene["headline"], font("inter-800", 64), 800):
-        draw.text((x, y), line, font=font("inter-800", 64), fill=INK + (255,))
-        y += 78
-    y += 30
-    for bullet in scene["bullets"]:
-        draw.ellipse([x, y + 14, x + 12, y + 26], fill=BLUE + (255,))
-        draw.text((x + 32, y), bullet, font=font("inter-500", 34), fill=(0xD5, 0xDB, 0xEA, 255))
-        y += 58
+    Everything else the scene has to say is said by the recording underneath it
+    and the one line of narration at the bottom. An earlier cut put a headline
+    and four bullets beside the phone, which said the same thing as the
+    subtitle at the same moment and left the app itself a third of the frame.
+    """
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    scrim = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    scrim_draw = ImageDraw.Draw(scrim)
+    for i in range(190):
+        scrim_draw.rectangle([0, i, 760, i + 1], fill=NIGHT + (int(150 * (1 - i / 190)),))
+    img = Image.alpha_composite(img, scrim)
+    draw = ImageDraw.Draw(img)
+
+    logo = Image.open(REPO / "docs" / "press" / "logo.png").convert("RGBA")
+    logo.thumbnail((300, 300), Image.LANCZOS)
+    img.paste(logo, (70, 62), logo)
+
+    draw.text((74, 150), scene["kicker"].upper(), font=font("inter-700", 26), fill=ACCENT + (255,))
+
+    draw.rounded_rectangle(
+        [PHONE_X - 3, PHONE_Y - 3, PHONE_X + PHONE_W + 2, PHONE_Y + PHONE_H + 2],
+        radius=PHONE_RADIUS + 3, outline=(0x3A, 0x44, 0x63, 235), width=3,
+    )
+
+    if not has_footage:
+        f_head, f_body = font("inter-800", 34), font("inter-500", 24)
+        draw.text((W / 2, H / 2 - 40), "RECORD", font=f_head, fill=AMBER + (255,), anchor="mm")
+        draw.text((W / 2, H / 2 + 10), scene["footage"], font=f_body, fill=MUTED + (255,), anchor="mm")
+        for i, line in enumerate(wrap(draw, scene["record"], f_body, 900)):
+            draw.text((W / 2, H / 2 + 60 + i * 32), line, font=f_body, fill=INK + (255,), anchor="mm")
     return img
 
 
@@ -309,75 +318,24 @@ def title_plate(subtitle_text: str | None = None) -> Image.Image:
     return banner(fonts_dir, W, H, subtitle_text)
 
 
-def numbers_plate() -> Image.Image:
+def impact_plate() -> Image.Image:
     img = backdrop()
     draw = ImageDraw.Draw(img)
-    draw.text((W / 2, 170), "ON THE PHONE, MEASURED", font=font("inter-700", 28), fill=ACCENT + (255,), anchor="mm")
+    draw.text((W / 2, 170), "BUILT FOR THE PILE EVERYONE HAS", font=font("inter-700", 28), fill=ACCENT + (255,), anchor="mm")
     tiles = [
-        ("97 / 100", "documents filed", INK),
-        ("0", "filed in the wrong place", GREEN),
-        ("0 bytes", "sent anywhere to sort", GREEN),
+        ("Seconds", "to find the one they asked for", INK),
+        ("3 languages", "French, Arabic and English", INK),
+        ("Nothing", "uploaded to sort your files", GREEN),
     ]
     tile_w, gap = 480, 50
     x0 = (W - (tile_w * 3 + gap * 2)) / 2
     for i, (big, small, colour) in enumerate(tiles):
         x = x0 + i * (tile_w + gap)
         draw.rounded_rectangle([x, 300, x + tile_w, 640], radius=32, fill=SURFACE + (255,))
-        draw.text((x + tile_w / 2, 440), big, font=font("inter-800", 96), fill=colour + (255,), anchor="mm")
-        draw.text((x + tile_w / 2, 550), small, font=font("inter-500", 32), fill=MUTED + (255,), anchor="mm")
-    draw.text((W / 2, 740), "3 held for review instead of guessed  ·  13 categories  ·  French, Arabic, English",
+        draw.text((x + tile_w / 2, 440), big, font=font("inter-800", 76), fill=colour + (255,), anchor="mm")
+        draw.text((x + tile_w / 2, 550), small, font=font("inter-500", 30), fill=MUTED + (255,), anchor="mm")
+    draw.text((W / 2, 740), "Students, freelancers, anyone whose rent contract is saved as IMG 4431",
               font=font("inter-500", 30), fill=FAINT + (255,), anchor="mm")
-    return img
-
-
-CODE = """\
-// Entitlements.kt: configured before anything asks what is unlocked
-Purchases.configure(
-    PurchasesConfiguration.Builder(context, REVENUECAT_KEY)
-        .apply { if (appUserId != null) appUserID(appUserId) }.build())
-Purchases.sharedInstance.updatedCustomerInfoListener =
-    UpdatedCustomerInfoListener { info -> state.value = info.hasLibrarian() }
-
-// RevenueCatLibrarianBilling.kt: the paywall, from the live offering
-val offering = Purchases.sharedInstance.awaitOfferings().current
-Purchases.sharedInstance.awaitPurchase(PurchaseParams.Builder(activity, pkg).build())
-val info = Purchases.sharedInstance.awaitRestore()
-
-// Entitlements.identify, on sign-in: the purchase follows the person
-Purchases.sharedInstance.awaitLogIn(userId)
-
-// MeScreen.kt: RevenueCat's own Customer Center
-CustomerCenter(options = CustomerCenterOptions.Builder().build(), onDismiss = …)"""
-
-SDK_WORDS = re.compile(
-    r"\b(Purchases|PurchasesConfiguration|UpdatedCustomerInfoListener|awaitOfferings|awaitPurchase|"
-    r"PurchaseParams|awaitRestore|awaitLogIn|appUserID|CustomerCenter|CustomerCenterOptions|configure)\b"
-)
-
-
-def code_plate() -> Image.Image:
-    img = backdrop()
-    draw = ImageDraw.Draw(img)
-    draw.text((140, 90), "REVENUECAT SDK, IN THE APP", font=font("inter-700", 28), fill=ACCENT + (255,))
-    draw.rounded_rectangle([120, 150, W - 120, 850], radius=28, fill=(0x0A, 0x0D, 0x17, 255),
-                           outline=(0x2A, 0x31, 0x48, 255), width=2)
-    mono, mono_bold = font("mono-400", 26), font("mono-700", 26)
-    y = 180
-    for line in CODE.splitlines():
-        x = 170
-        if line.strip().startswith("//"):
-            draw.text((x, y), line, font=mono, fill=FAINT + (255,))
-        else:
-            pos = 0
-            for match in SDK_WORDS.finditer(line):
-                before = line[pos:match.start()]
-                draw.text((x, y), before, font=mono, fill=(0xC9, 0xD1, 0xE3, 255))
-                x += draw.textlength(before, font=mono)
-                draw.text((x, y), match.group(0), font=mono_bold, fill=ACCENT + (255,))
-                x += draw.textlength(match.group(0), font=mono_bold)
-                pos = match.end()
-            draw.text((x, y), line[pos:], font=mono, fill=(0xC9, 0xD1, 0xE3, 255))
-        y += 39
     return img
 
 
@@ -406,7 +364,7 @@ def probe(path: Path) -> tuple[float, int, int]:
     return int(h) * 3600 + int(m) * 60 + float(s), w, hgt
 
 
-def compose(scene: dict, duration: float, lines: list[Line], wav: Path, work: Path) -> Path:
+def compose(scene: dict, index: int, duration: float, lines: list[Line], wav: Path, work: Path) -> Path:
     kind = scene["kind"]
     footage = FOOTAGE / scene["footage"] if scene.get("footage") else None
     has_footage = bool(footage and footage.exists())
@@ -419,10 +377,8 @@ def compose(scene: dict, duration: float, lines: list[Line], wav: Path, work: Pa
         plates = [(first, 0.0), (second, lines[-1].start - 0.2)]
     elif kind == "title":
         plates = [(title_plate(), 0.0)]
-    elif kind == "numbers":
-        plates = [(numbers_plate(), 0.0)]
-    elif kind == "code":
-        plates = [(code_plate(), 0.0)]
+    elif kind == "impact":
+        plates = [(impact_plate(), 0.0)]
     elif kind == "close":
         plates = [(close_plate(), 0.0)]
     else:
@@ -431,12 +387,10 @@ def compose(scene: dict, duration: float, lines: list[Line], wav: Path, work: Pa
     inputs, filters = [], []
     for i, (plate, _) in enumerate(plates):
         path = work / f"{scene['id']}-plate{i}.png"
-        plate.convert("RGB").save(path)
+        # Kept as RGBA for footage scenes: the plate is a transparent overlay
+        # sitting on the recording, not the background behind it.
+        (plate if has_footage else plate.convert("RGB")).save(path)
         inputs += ["-loop", "1", "-t", f"{duration:.3f}", "-framerate", str(FPS), "-i", str(path)]
-    stream = "[0:v]"
-    for i in range(1, len(plates)):
-        filters.append(f"{stream}[{i}:v]overlay=enable='gte(t,{plates[i][1]:.3f})'[p{i}]")
-        stream = f"[p{i}]"
     next_input = len(plates)
 
     if has_footage:
@@ -453,13 +407,26 @@ def compose(scene: dict, duration: float, lines: list[Line], wav: Path, work: Pa
         next_input += 2
         ox, oy = PHONE_X + (PHONE_W - sw) // 2, PHONE_Y + (PHONE_H - sh) // 2
         filters.append(
-            f"[{fi}:v]setpts=PTS/{speed:.4f},fps={FPS},scale={sw}:{sh},format=rgba,"
-            f"tpad=stop_mode=clone:stop_duration={duration:.3f}[clip]"
+            f"[{fi}:v]setpts=PTS/{speed:.4f},fps={FPS},"
+            f"tpad=stop_mode=clone:stop_duration={duration:.3f},split=2[bgsrc][fgsrc]"
         )
+        # The blur behind the phone is the same frame, enlarged and darkened, so
+        # the empty sides of a portrait recording carry the app's own colour.
+        filters.append(
+            f"[bgsrc]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+            f"gblur=sigma=54,eq=brightness=-0.62:saturation=0.40,setsar=1[bg]"
+        )
+        filters.append(f"[fgsrc]scale={sw}:{sh},format=rgba[clip]")
         filters.append(f"[{mi}:v]format=gray[mask]")
         filters.append("[clip][mask]alphamerge[rounded]")
-        filters.append(f"{stream}[rounded]overlay={ox}:{oy}:shortest=0[withclip]")
-        stream = "[withclip]"
+        filters.append(f"[bg][rounded]overlay={ox}:{oy}:shortest=0[stage]")
+        filters.append("[stage][0:v]overlay=0:0[withchrome]")
+        stream = "[withchrome]"
+    else:
+        stream = "[0:v]"
+        for i in range(1, len(plates)):
+            filters.append(f"{stream}[{i}:v]overlay=enable='gte(t,{plates[i][1]:.3f})'[p{i}]")
+            stream = f"[p{i}]"
 
     for k, line in enumerate(lines):
         path = work / f"{scene['id']}-sub{k}.png"
@@ -470,8 +437,19 @@ def compose(scene: dict, duration: float, lines: list[Line], wav: Path, work: Pa
         stream = f"[s{k}]"
         next_input += 1
 
+    # A slow push in or pull out across the scene, alternating, so no shot is
+    # ever completely still. zoompan works in whole pixels, which judders at
+    # this speed, so the frame is enlarged first and the move happens in that
+    # larger frame before it is scaled back down.
+    frames = max(int(duration * FPS), 2)
+    zoom_in = scene.get("motion", "in" if index % 2 == 0 else "out") == "in"
+    z = f"1+{MOTION_ZOOM}*on/{frames}" if zoom_in else f"{1 + MOTION_ZOOM}-{MOTION_ZOOM}*on/{frames}"
     filters.append(
-        f"{stream}fade=t=in:st=0:d={FADE},fade=t=out:st={duration - FADE:.3f}:d={FADE},format=yuv420p[v]"
+        f"{stream}scale={int(W * 1.5)}:{int(H * 1.5)}:flags=bicubic,"
+        f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={W}x{H}:fps={FPS}[moved]"
+    )
+    filters.append(
+        f"[moved]fade=t=in:st=0:d={FADE},fade=t=out:st={duration - FADE:.3f}:d={FADE},format=yuv420p[v]"
     )
     inputs += ["-i", str(wav)]
     out = work / f"{scene['id']}.mp4"
@@ -512,7 +490,7 @@ def main() -> None:
         duration, lines = narrate(narrator, scene["sentences"], wav)
         has = scene.get("footage") and (FOOTAGE / scene["footage"]).exists()
         print(f"{scene['id']:14} {duration:5.1f}s  {'footage' if has else ('PLACEHOLDER' if scene['kind'] == 'phone' else scene['kind'])}")
-        segments.append(compose(scene, duration, lines, wav, work))
+        segments.append(compose(scene, len(segments), duration, lines, wav, work))
         srt += [Line(l.text, clock + l.start, clock + l.end) for l in lines]
         clock += duration
 

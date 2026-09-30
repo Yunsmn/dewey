@@ -1,21 +1,14 @@
 {
-  "voice": "af_heart",
-  "speed": 1.0,
+  "voice": "af_bella",
+  "speed": 1.08,
   "scenes": [
     {
       "id": "01-hook",
       "kind": "downloads",
       "sentences": [
-        "This is my Downloads folder.",
-        "Somewhere in here is last January's electricity bill.",
-        "It's called document, five, dot P D F. Of course it is."
-      ]
-    },
-    {
-      "id": "02-title",
-      "kind": "title",
-      "sentences": [
-        "This is Dewey. It reads your documents, so you don't have to remember what you called them."
+        "This is my Downloads folder. Everything important I own is in here somewhere.",
+        "My rent contract, three months of bills, the medical note the university asked me for twice.",
+        "All of them called things like document five, or I M G four four three one."
       ]
     },
     {
@@ -32,19 +25,11 @@
       ],
       "record": "Documents tab with the corpus folder linked. Tap Sort, let the progress run, then show the new folders and the review queue. End on the Undo button.",
       "sentences": [
-        "I point it at a folder and tap Sort.",
-        "Dewey reads every P D F, in French, Arabic or English, even scans with no text in them.",
-        "It works out what each one is, creates the folders, and files them. Bills, bank statements, contracts, medical letters.",
-        "Anything it isn't sure about goes to a review queue instead of being guessed.",
-        "And the whole sort can be undone with one tap."
-      ]
-    },
-    {
-      "id": "04-numbers",
-      "kind": "numbers",
-      "sentences": [
-        "All of that happened on the phone. Sorting sends nothing, anywhere.",
-        "On our test set of a hundred documents, it filed ninety-seven, and got every single one right."
+        "So I tap sort. Once.",
+        "Dewey opens every file and reads it, right on the phone. French, Arabic, English, even photos of paper.",
+        "It can tell a bill from a contract from a doctor's note, makes the folders, and puts everything away.",
+        "The two it wasn't sure about, it left alone and flagged them, because the wrong folder is worse than no folder.",
+        "Nothing got uploaded. And one tap puts it all back."
       ]
     },
     {
@@ -60,9 +45,9 @@
       ],
       "record": "Open the assistant, type 'When is my Lydec bill due and how much is it?', wait for the answer with its source chips, tap one. Then a quick pass over the Bills tab.",
       "sentences": [
-        "Then I can just ask. When is my Lydec bill due, and how much is it?",
-        "It answers from what's actually in my files, and shows exactly which documents it used.",
-        "Bills get their own tab, sorted by what's due first."
+        "And when you cannot remember which file it was, you just ask.",
+        "When is my Lydec bill due, and how much is it.",
+        "Five bills, the amounts, the dates, all of them already late. It takes that straight from the documents, and shows you which ones it used."
       ]
     },
     {
@@ -79,10 +64,10 @@
       ],
       "record": "Fresh install (or signed-out Test Store user). Tap the locked Documents tab, show the paywall prices, buy the annual plan through the Test Store dialog, land on the unlocked tab. Then Me tab: sign in with email, open 'Help with my subscription'.",
       "sentences": [
-        "The part that reads for you is Librarian, the paid tier, and it runs on RevenueCat.",
-        "The paywall is our own design, but every price on it comes live from the RevenueCat offering, and the savings badge is worked out from the real products.",
-        "One purchase, the entitlement flips, and everything unlocks.",
-        "Sign in, and RevenueCat logs the purchase in to your account, so it follows you to a new phone. And RevenueCat's Customer Center handles restores and cancellations right inside the app."
+        "The scanner and the P D F tools are free. No ads, no account, nothing nagging you.",
+        "The part that reads and files for you is the paid side, and it runs on RevenueCat.",
+        "Every price comes live from the offering, and the savings badge is worked out from the real products.",
+        "Sign in, and RevenueCat carries that purchase to your next phone."
       ]
     },
     {
@@ -98,16 +83,24 @@
       ],
       "record": "Home: tap Scan and capture a page. Then Reorder: long-press a page thumbnail and drag it. Then Sign: draw a signature and place it on a page.",
       "sentences": [
-        "And the free part isn't a teaser.",
-        "A real document scanner, and fourteen P D F tools. Drag pages into order, sign, split, merge, compress, add a password.",
-        "No ads, and no account needed."
+        "Underneath it all is a proper scanner. Edges, perspective, text recognition.",
+        "And fourteen P D F tools. Drag pages into order, sign one, split, merge, shrink, lock.",
+        "Most people come for that. They stay because they stop losing things."
+      ]
+    },
+    {
+      "id": "04-numbers",
+      "kind": "impact",
+      "sentences": [
+        "If you are a student, this is the pile that ruins your week. Scholarship forms, insurance, the clinic note, rent receipts.",
+        "Dewey keeps all of it where you can find it in seconds, in whatever language it arrived in."
       ]
     },
     {
       "id": "09-close",
       "kind": "close",
       "sentences": [
-        "Dewey. It finds the file you can't name."
+        "That is Dewey. It finds the file you cannot name."
       ]
     }
   ]
