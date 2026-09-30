@@ -54,3 +54,8 @@ revenuecat.properties
 demo/.cache/
 demo/out/
 demo/footage/
+
+# Working notes that belong on the machine, not in a repo a judge reads
+*.local.md
+docs/NEEDS_YOU.md
+docs/handoff-*.md

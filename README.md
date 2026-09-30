@@ -8,11 +8,15 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Yunsmn/dewey/releases/latest"><b>⬇ Download the APK</b></a> ·
   <a href="#what-it-does">What it does</a> ·
   <a href="#revenuecat">RevenueCat</a> ·
   <a href="#how-it-works">How it works</a> ·
-  <a href="#build">Build</a> ·
-  <a href="#whats-not-done">What's not done</a>
+  <a href="#build-it-yourself">Build it</a>
+</p>
+
+<p align="center">
+  <img src="docs/press/page-grid.gif" alt="Dragging a page into place in Dewey's page grid" width="820">
 </p>
 
 ---
@@ -32,6 +36,23 @@ against is Moroccan: French, Arabic and English, often in one document.
 | **Finds by meaning** | 81% recall@1, 95% recall@3 over the test corpus, in three languages. |
 | **Sends nothing to sort** | Classification is a nearest-neighbour lookup on on-device embeddings. No network call. |
 | **Monetised honestly** | The scanner and all 14 PDF tools are free, with no ads. The paywall sells the part that reads your documents for you. |
+
+---
+
+## Install it
+
+**[Download the latest APK](https://github.com/Yunsmn/dewey/releases/latest)** —
+take `arm64-v8a` for almost any phone made since 2017, `armeabi-v7a` for older or
+budget phones, `x86_64` for an emulator.
+
+Everything the app needs is inside that file, including the 118 MB multilingual
+encoder it uses to read and sort documents. There is nothing else to download and
+nothing to compile. Android will ask you to allow installing from your browser or
+files app, because this is not from the Play Store.
+
+The build carries RevenueCat's **Test Store**, so the purchase is simulated: tap
+Upgrade and choose *TEST VALID PURCHASE* to unlock the paid tier. No money, no
+card, no store — this is a hackathon entry, not a product listing.
 
 ---
 
@@ -143,16 +164,9 @@ content URIs, not file paths.** Nothing in the app may assume a `File`.
 
 There is a real cost, and it is worth stating rather than hiding. Since Android
 11 the system refuses to grant a document tree over the `Download` root itself —
-the picker says "Can't use this folder" and disables the button. The same applies
-to the storage root and `Android/data`. Any *subfolder* of Downloads is granted
-normally, so Dewey works on `Download/Statements` but cannot be pointed at
-`Download` wholesale.
-
-`MANAGE_EXTERNAL_STORAGE` would lift that restriction. It is not used here. The
-platform is drawing a deliberate line around a folder full of everything a person
-has ever downloaded, and an app that reads one folder does not need a key to all
-of them — which is the same reasoning that chose SAF in the first place, so
-honouring it when it is inconvenient is rather the point.
+the picker says "Can't use this folder" and disables the button. Any *subfolder*
+of Downloads is granted normally, so Dewey works on `Download/Statements` but
+cannot be pointed at `Download` wholesale.
 
 ### Retrieval: embeddings computed on-device
 
@@ -196,21 +210,14 @@ nearest-neighbour lookup against a short description of each kind of document.
 Measured against the test corpus's own labels, it files 97 of 100 documents and
 gets **every one of those 97 right**; the other three go to review rather than
 being guessed at. That is across thirteen categories described in French, Arabic
-and English. It costs nothing per file,
-works with no network, and means sorting a folder sends nothing anywhere at all.
-
-A real Downloads folder is not only admin, so `Papers` is one of the thirteen:
-fifteen arXiv papers and an RFC are all recognised as papers, fourteen of
-them confidently enough to file. It was worth measuring rather than assuming,
-because a maths-heavy phrasing tried during
-tuning pulled an English university transcript into Papers and was dropped for it.
+and English. It costs nothing per file, works with no network, and means sorting
+a folder sends nothing anywhere at all.
 
 It also declines to answer. A document has to clear 0.80 similarity against a
 category before the sort will act on it; below that it is left exactly where it
-is and surfaced for review rather than confidently filed somewhere wrong. Two of
-those sixteen papers land there — right about what they are, not quite sure
-enough to move. Erring high is deliberate: review is a mild annoyance, a
-confident misfile costs trust in the whole feature.
+is and surfaced for review rather than confidently filed somewhere wrong. Erring
+high is deliberate: review is a mild annoyance, a confident misfile costs trust
+in the whole feature.
 
 Every move is written to an undo log as it happens, so an interrupted sort is
 still reversible, and the button that reverses it sits next to the one that
@@ -224,10 +231,6 @@ the request through Google's own credentials, which arrive in
 build. So no key is in the source, and there is no separate backend to deploy or
 keep alive.
 
-App Check would be the next thing to add here: it is what stops a copy of the
-config file being used from somewhere that is not this app. It is not wired up
-yet, and the app builds and runs without it.
-
 ### Long-running work
 
 Sorting four hundred files is not a screen's job. Batch sort, indexing and
@@ -237,85 +240,34 @@ and cancelling actually reaches the running task.
 
 ---
 
-## Build
+## Build it yourself
 
-Requires JDK 17 and the Android SDK. Both live under `$HOME` in this setup — no
-root, nothing installed system-wide:
+Requires JDK 17 and the Android SDK; `scripts/env.sh` points at both and honours
+`JAVA_HOME` / `ANDROID_HOME` if you already have them.
 
 ```
 git clone https://github.com/Yunsmn/dewey && cd dewey
-. scripts/env.sh          # JAVA_HOME, ANDROID_HOME, PATH
-./gradlew assembleDebug
+. scripts/env.sh
+tools/eval/fetch_model.sh                                    # the encoder, 118MB, not in git
+python tools/model/prepare_assets.py --model-dir tools/eval/model
+./gradlew assembleDemo                                       # or :app:testDemoUnitTest
 ```
 
-`scripts/env.sh` honours `JAVA_HOME` and `ANDROID_HOME` if you already have them
-set, so it will not fight an existing Android Studio install.
-
-If you need the SDK from scratch, the command-line tools bootstrap themselves:
-
-```
-mkdir -p ~/Android/Sdk/cmdline-tools && cd ~/Android/Sdk/cmdline-tools
-curl -LO https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip
-unzip -q commandlinetools-*.zip && mv cmdline-tools latest
-latest/bin/android sdk install platform-tools "platforms;android-36" "build-tools;36.0.0"
-```
+The encoder is `Xenova/multilingual-e5-small` (MIT), fetched rather than
+committed because 118 MB of third-party weights do not belong in git history.
+The prepared APK in [Releases](https://github.com/Yunsmn/dewey/releases/latest)
+already contains it — those two commands are only for building from source.
 
 Firebase configuration is not committed. To run the Librarian tier you need your
 own `google-services.json` in `app/` — see [docs/firebase-setup.md](docs/firebase-setup.md).
 The free tier builds and runs without it.
 
-### The encoder
-
-The encoder is not committed — 118MB of third-party weights do not belong in git
-history. Fetch and prepare it before building or running the tests:
-
-```
-tools/eval/fetch_model.sh
-python tools/model/prepare_assets.py --model-dir tools/eval/model
-```
-
-That downloads `Xenova/multilingual-e5-small` (an ONNX export of
-`intfloat/multilingual-e5-small`, MIT licensed), packs its 250k-entry
-SentencePiece vocabulary into a compact binary the app can load without parsing
-17MB of JSON at startup, and writes the fixtures the tokenizer is tested against.
-
-The Kotlin tokenizer is checked token-for-token against HuggingFace `tokenizers`
-on French, Arabic, mixed-script, emoji and malformed input. This matters more
-than it looks: a tokenizer that is subtly wrong never crashes, it just quietly
-produces slightly wrong vectors and slightly worse search, forever.
-
-### The test corpus
-
-`tools/corpus/` generates the archive this app is developed and evaluated
-against: 100 Moroccan documents in French, Arabic and English — utility bills,
-bank statements, rental contracts, invoices, medical letters, transcripts,
-insurance policies, tax forms — with the uninformative filenames real archives
-actually contain (`Scan_20240312_004.pdf`, `Nouveau document 7.pdf`).
-
-It is confusable on purpose. Six consecutive months of Lydec bills, six
-consecutive Attijariwafa statements, repeat visits to the same clinic. Retrieval
-that only works on a corpus of obviously-different documents measures nothing.
-
-Every generated document is round-trip verified: text is extracted back out of
-the finished PDF and checked against the source, gated at 0.92 token recall.
-Arabic in particular loses content at direction boundaries, and a document whose
-text didn't survive would quietly corrupt the evaluation.
-
-```
-python -m venv .venv && ./.venv/bin/pip install -r tools/corpus/requirements.txt
-./.venv/bin/python tools/corpus/generate_corpus.py
-```
-
-Writes `tools/corpus/corpus/` and a `ground_truth.json` answer key.
-
-### Tests
+Over 760 JVM unit tests, including PDFBox round trips on real documents and a
+tokenizer checked token for token against HuggingFace `tokenizers`:
 
 ```
 ./gradlew :app:testDemoUnitTest
 ```
-
-Over 760 JVM unit tests, including PDFBox round trips on real documents and
-the tokenizer checked token for token against HuggingFace.
 
 ---
 
@@ -335,12 +287,15 @@ Kept current and honest.
       from French and Arabic documents in 7 to 12 seconds.
 - [x] **RevenueCat purchase.** A Test Store purchase through the custom paywall
       unlocks the paid tabs.
-- [x] **PDF toolkit.** Merge, extract, rotate, delete and reorder checked on a
-      device by reading the output PDFs back. So were password protect and
+- [x] **PDF toolkit.** Every page tool checked on a device by reading the output
+      PDFs back: merge, extract, rotate, delete, reorder, and split (11 pages,
+      four to a file, came back 4 + 4 + 3 in order). So were password protect and
       unlock, watermark, page numbers, compress, and PDF to and from images.
-- [ ] **Not yet checked on a device:** the page-thumbnail grids, Sign, Split,
-      the optional account, and the Customer Center screen. They are unit-tested
-      where they have logic worth testing, but nobody has used them on a screen yet.
+- [x] **The page grids and Sign.** Dragging a page into third place saves a file
+      that reads 2, 3, 1, 4…; tapping pages 1 and 3 in Extract yields exactly
+      those two; a signature lands upright on a page rotated 90°.
+- [ ] **Not yet checked on a device:** the optional account and the Customer
+      Center screen, both of which need their consoles configured first.
 - [ ] **Widgets on a real launcher**, rather than opened by intent.
 - [ ] **App Check.** Not wired up, so the Firebase config in an APK could be
       reused from outside the app.
