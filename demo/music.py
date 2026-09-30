@@ -61,6 +61,22 @@ def pulse(at: float, total: float) -> np.ndarray:
     return track
 
 
+def arpeggio(frequencies: tuple[float, ...], seconds: float, level: float) -> np.ndarray:
+    """A light plucked figure over the chord: what makes the bed feel casual rather than ambient."""
+    track = np.zeros(int(seconds * RATE))
+    step = 0.45
+    notes = [frequencies[0] * 2, frequencies[1] * 2, frequencies[2] * 2, frequencies[1] * 2]
+    length = int(step * 1.6 * RATE)
+    t = np.linspace(0.0, step * 1.6, length, endpoint=False)
+    for i in range(int(seconds / step)):
+        f = notes[i % len(notes)]
+        pluck = (np.sin(2 * np.pi * f * t) + 0.4 * np.sin(2 * np.pi * f * 2 * t)) * np.exp(-t * 4.5)
+        start = int(i * step * RATE)
+        end = min(start + length, len(track))
+        track[start:end] += pluck[:end - start] * level
+    return track
+
+
 def main() -> None:
     out, seconds = sys.argv[1], float(sys.argv[2])
     lift_at = float(sys.argv[3]) if len(sys.argv) > 3 else seconds * 0.25
@@ -76,6 +92,11 @@ def main() -> None:
         # Each chord rings on past its bar, so the last one runs off the end.
         end = min(start + len(chord), len(track))
         track[start:end] += chord[:end - start]
+        # The pluck comes in with the app and stays, so the bed has a pulse to it.
+        if position >= lift_at - BAR:
+            figure = arpeggio(CHORDS[index % len(CHORDS)], BAR, 0.5 * min(1.0, brightness + 0.45))
+            end = min(start + len(figure), len(track))
+            track[start:end] += figure[:end - start]
         position += BAR
         index += 1
 
@@ -87,7 +108,7 @@ def main() -> None:
     track[:fade] *= np.linspace(0.0, 1.0, fade)
     track[-fade:] *= np.linspace(1.0, 0.0, fade)
     track /= max(np.abs(track).max(), 1e-6)
-    sf.write(out, (track * 0.5).astype(np.float32), RATE)
+    sf.write(out, (track * 0.85).astype(np.float32), RATE)
     print(f"{out}  {seconds:.1f}s  lift at {lift_at:.1f}s")
 
 
