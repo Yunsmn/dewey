@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/press/page-grid.gif" alt="Dragging a page into place in Dewey's page grid" width="820">
+  <img src="docs/press/sort.gif" alt="Dewey sorting 100 unnamed documents into folders on the phone" width="820">
 </p>
 
 ---
@@ -69,6 +69,10 @@ card, no store — this is a hackathon entry, not a product listing.
   tap to pick pages to extract, delete or rotate; tap expand for a page full screen.
 - Recent files on Home, and a **Quick scan** home-screen widget.
 
+<p align="center">
+  <img src="docs/press/page-grid.gif" alt="Dragging a page into place in Dewey's page grid" width="760">
+</p>
+
 ### Librarian, the paid tier (a RevenueCat entitlement)
 
 - **Documents.** Link a folder and browse it by what each document *is*: bills,
@@ -81,6 +85,10 @@ card, no store — this is a hackathon entry, not a product listing.
 - **Bills and notes.** Detected bills with vendor, amount and due date, grouped
   by how soon they are due, plus notes of your own, standalone or pinned to a
   bill. Both are home-screen widgets.
+
+<p align="center">
+  <img src="docs/press/ask.gif" alt="Asking Dewey when the Lydec bill is due, answered from the documents" width="760">
+</p>
 
 ### An optional account
 
@@ -106,22 +114,6 @@ path goes through the SDK. None of it is hardcoded.
 | Identity: signing in makes the RevenueCat customer the account, not the install | [`auth/Account.kt`](app/src/main/kotlin/app/dewey/auth/Account.kt), `Entitlements.identify/forget` | `awaitLogIn`, `awaitLogOut`, `isAnonymous`, `setEmail` |
 | Self-serve subscription help: restore, cancel, change plan | [`ui/me/MeScreen.kt`](app/src/main/kotlin/app/dewey/ui/me/MeScreen.kt) | `CustomerCenter` from `purchases-ui` |
 | Manage subscription link | [`ui/me/MeViewModel.kt`](app/src/main/kotlin/app/dewey/ui/me/MeViewModel.kt) | `CustomerInfo.managementURL` |
-
-The core of it:
-
-```kotlin
-// billing/Entitlements.kt — configured before anything can ask whether a feature is unlocked
-Purchases.configure(
-    PurchasesConfiguration.Builder(context, BuildConfig.REVENUECAT_KEY)
-        .apply { if (appUserId != null) appUserID(appUserId) }
-        .build()
-)
-Purchases.sharedInstance.updatedCustomerInfoListener =
-    UpdatedCustomerInfoListener { info -> state.value = info.entitlements[LIBRARIAN]?.isActive == true }
-
-// Signing in: whatever was bought anonymously on this phone moves to the account.
-state.value = Purchases.sharedInstance.awaitLogIn(userId).customerInfo.hasLibrarian()
-```
 
 **Why a custom paywall.** It is drawn in the app's own design, but it is still
 data-driven. The offering and every price come live from the dashboard, the

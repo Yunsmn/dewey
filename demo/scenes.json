@@ -24,7 +24,12 @@
       "footage": "03-sort.mp4",
       "kicker": "Librarian · Sort",
       "headline": "One tap files a whole folder",
-      "bullets": ["Reads every PDF, even scans", "French, Arabic and English", "Unsure files wait for review", "The whole sort can be undone"],
+      "bullets": [
+        "Reads every PDF, even scans",
+        "French, Arabic and English",
+        "Unsure files wait for review",
+        "The whole sort can be undone"
+      ],
       "record": "Documents tab with the corpus folder linked. Tap Sort, let the progress run, then show the new folders and the review queue. End on the Undo button.",
       "sentences": [
         "I point it at a folder and tap Sort.",
@@ -48,7 +53,11 @@
       "footage": "05-ask.mp4",
       "kicker": "Librarian · Ask",
       "headline": "Ask your documents",
-      "bullets": ["Answers from what's in your files", "Shows the documents it used", "Bills grouped by due date"],
+      "bullets": [
+        "Answers from what's in your files",
+        "Shows the documents it used",
+        "Bills grouped by due date"
+      ],
       "record": "Open the assistant, type 'When is my Lydec bill due and how much is it?', wait for the answer with its source chips, tap one. Then a quick pass over the Bills tab.",
       "sentences": [
         "Then I can just ask. When is my Lydec bill due, and how much is it?",
@@ -62,7 +71,12 @@
       "footage": "06-revenuecat.mp4",
       "kicker": "Monetisation · RevenueCat",
       "headline": "Librarian runs on RevenueCat",
-      "bullets": ["Prices live from the offering", "Entitlement unlocks instantly", "Sign in: purchase follows you", "Customer Center in the app"],
+      "bullets": [
+        "Prices live from the offering",
+        "Entitlement unlocks instantly",
+        "Sign in: purchase follows you",
+        "Customer Center in the app"
+      ],
       "record": "Fresh install (or signed-out Test Store user). Tap the locked Documents tab, show the paywall prices, buy the annual plan through the Test Store dialog, land on the unlocked tab. Then Me tab: sign in with email, open 'Help with my subscription'.",
       "sentences": [
         "The part that reads for you is Librarian, the paid tier, and it runs on RevenueCat.",
@@ -72,19 +86,16 @@
       ]
     },
     {
-      "id": "07-code",
-      "kind": "code",
-      "sentences": [
-        "Under the hood, that's configure, a customer info listener, offerings, purchase, restore, log in, and Customer Center."
-      ]
-    },
-    {
       "id": "08-tools",
       "kind": "phone",
       "footage": "08-tools.mp4",
       "kicker": "Free · no ads, no account",
       "headline": "A real scanner and fourteen PDF tools",
-      "bullets": ["Scan with edge detection and OCR", "Drag pages into order", "Sign, split, merge, compress, protect"],
+      "bullets": [
+        "Scan with edge detection and OCR",
+        "Drag pages into order",
+        "Sign, split, merge, compress, protect"
+      ],
       "record": "Home: tap Scan and capture a page. Then Reorder: long-press a page thumbnail and drag it. Then Sign: draw a signature and place it on a page.",
       "sentences": [
         "And the free part isn't a teaser.",
