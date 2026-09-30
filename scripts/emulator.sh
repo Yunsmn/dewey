@@ -22,10 +22,15 @@ case "${1:-status}" in
     if adb devices 2>/dev/null | grep -qE '^emulator-[0-9]+\s+device'; then
       echo "already running"; exit 0
     fi
+    # Public DNS, explicitly. Inheriting the host's resolver left the device
+    # unable to resolve anything — every RevenueCat call died with "Unable to
+    # resolve host api.revenuecat.com", and the assistant could not reach
+    # Gemini either, which looks like an app bug and is not one.
     nohup emulator -avd "$AVD" \
       -no-snapshot-save -no-boot-anim -no-audio \
       -gpu swiftshader_indirect \
       -memory "$MEMORY_MB" \
+      -dns-server 8.8.8.8,1.1.1.1 \
       > /tmp/dewey-emulator.log 2>&1 &
     echo "starting $AVD with ${MEMORY_MB}MB; log at /tmp/dewey-emulator.log"
     ;;
